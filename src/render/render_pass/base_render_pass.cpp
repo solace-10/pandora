@@ -3,6 +3,7 @@
 #include "render/rendersystem.hpp"
 #include "render/window.hpp"
 #include "scene/scene.hpp"
+#include "scene/systems/landscape_render_system.hpp"
 #include "scene/systems/model_render_system.hpp"
 #include "pandora.hpp"
 
@@ -46,6 +47,12 @@ void BaseRenderPass::Render(wgpu::CommandEncoder& encoder)
     Scene* pScene = GetActiveScene();
     if (pScene)
     {
+        LandscapeRenderSystem* pLandscapeRenderSystem = pScene->GetSystem<LandscapeRenderSystem>();
+        if (pLandscapeRenderSystem)
+        {
+            pLandscapeRenderSystem->Render(renderPass);
+        }
+
         ModelRenderSystem* pModelRenderSystem = pScene->GetSystem<ModelRenderSystem>();
         if (pModelRenderSystem)
         {
