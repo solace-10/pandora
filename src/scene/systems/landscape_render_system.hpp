@@ -2,7 +2,7 @@
 
 #include <webgpu/webgpu_cpp.h>
 
-#include "resources/resource_model.hpp"
+#include "resources/resource_shader.hpp"
 #include "scene/systems/system.hpp"
 
 namespace WingsOfSteel
@@ -20,13 +20,14 @@ public:
     void Render(wgpu::RenderPassEncoder& renderPass);
 
 private:
-    struct InstanceData
-    {
-        ResourceModelWeakPtr pModel;
-        ResourceModel::InstanceTransforms transforms;
-    };
+    void GenerateGridGeometry();
+    void CreateRenderPipeline();
 
-    std::vector<InstanceData> m_InstanceData;
+    ResourceShaderSharedPtr m_pShader;
+    wgpu::RenderPipeline m_RenderPipeline;
+    wgpu::Buffer m_VertexBuffer;
+    uint32_t m_VertexCount;
+    bool m_Initialized;
 };
 
 } // namespace WingsOfSteel
