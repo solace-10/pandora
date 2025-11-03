@@ -19,12 +19,12 @@ public:
     void Initialize(Scene* pScene) override{};
     void Update(float delta) override{};
 
-    void Generate(EntitySharedPtr pLandscapeEntity, uint32_t width, uint32_t height);
+    void Generate(EntitySharedPtr pLandscapeEntity);
 
     void DrawDebugUI() override;
 
 private:
-    void GenerateDebugHeightfieldTexture(LandscapeComponent& landscapeComponent);
+    void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
     EntityWeakPtr m_pLandscapeEntity;
 };
 

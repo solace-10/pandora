@@ -79,6 +79,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(delaunator-cpp)
 
 FetchContent_Declare(
+    FastNoise2
+    GIT_REPOSITORY https://github.com/Auburn/FastNoise2.git
+    GIT_TAG 9b75083b87d5e391d43dc0c721d8a9fa51db735a # v0.10.0-alpha
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext/FastNoise2
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(FastNoise2)
+
+FetchContent_Declare(
     freetype
     GIT_REPOSITORY https://github.com/freetype/freetype.git
     GIT_TAG 42608f77f20749dd6ddc9e0536788eaad70ea4b5 # VER-2-13-3
