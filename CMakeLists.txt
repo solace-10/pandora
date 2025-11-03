@@ -38,6 +38,7 @@ target_include_directories(pandora PUBLIC
 
 target_include_directories(pandora PRIVATE
     ext/debug-draw/
+    ext/FastNoise2/include/
     ext/freetype/include/
 )
 
@@ -55,6 +56,7 @@ target_compile_definitions(pandora PUBLIC
 )
 
 target_link_libraries(pandora PUBLIC 
+    FastNoise
     freetype
     glm::glm
     magic_enum::magic_enum 

@@ -1,5 +1,8 @@
 #include "scene/systems/landscape_system.hpp"
 
+#include <FastNoise/FastNoise.h>
+
+#include "FastNoise/Generators/Fractal.h"
 #include "imgui/imgui.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
@@ -16,7 +19,7 @@ LandscapeSystem::~LandscapeSystem()
 {
 }
 
-void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity, uint32_t width, uint32_t height)
+void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
 {
     if (!pLandscapeEntity->HasComponent<LandscapeComponent>())
     {
@@ -27,23 +30,41 @@ void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity, uint32_t width,
     m_pLandscapeEntity = pLandscapeEntity;
 
     LandscapeComponent& landscapeComponent = pLandscapeEntity->GetComponent<LandscapeComponent>();
-    landscapeComponent.Width = width;
-    landscapeComponent.Height = height;
-    landscapeComponent.Heightmap.resize(width * height);
+
+    const size_t heightmapSize = landscapeComponent.Width * landscapeComponent.Height;
+    if (landscapeComponent.Heightmap.size() != heightmapSize)
+    {
+        landscapeComponent.Heightmap.resize(heightmapSize);
+    }
+
+    auto noiseSimplex = FastNoise::New<FastNoise::Simplex>();
+    auto noiseFractal = FastNoise::New<FastNoise::FractalFBm>();
+
+    noiseFractal->SetSource(noiseSimplex);
+    noiseFractal->SetOctaveCount(4);
+
+    noiseFractal->GenUniformGrid2D(landscapeComponent.Heightmap.data(), 0, 0, landscapeComponent.Width, landscapeComponent.Height, 0.0025f, 1337);
+
+    for (float& height : landscapeComponent.Heightmap)
+    {
+        height = (height + 1.0f) * 0.5f; // Remap from [-1, 1] to [0, 1]
+    }
 
     landscapeComponent.Generation++;
 
-    GenerateDebugHeightfieldTexture(landscapeComponent);
+    GenerateDebugHeightmapTexture(landscapeComponent);
 }
 
-void LandscapeSystem::GenerateDebugHeightfieldTexture(LandscapeComponent& landscapeComponent)
+void LandscapeSystem::GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent)
 {
-    uint8_t height = 128;
     std::vector<uint8_t> textureData;
     textureData.resize(landscapeComponent.Width * landscapeComponent.Height * 4);
-    for (size_t index = 0; index < textureData.size(); index += 4)
+
+    for (size_t i = 0; i < landscapeComponent.Heightmap.size(); ++i)
     {
-        textureData[index    ] = height;
+        uint8_t height = static_cast<uint8_t>(landscapeComponent.Heightmap[i] * 255.0f);
+        size_t index = i * 4;
+        textureData[index] = height;
         textureData[index + 1] = height;
         textureData[index + 2] = height;
         textureData[index + 3] = 255;
