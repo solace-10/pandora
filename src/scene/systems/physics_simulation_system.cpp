@@ -86,10 +86,15 @@ void PhysicsSimulationSystem::Update(float delta)
     m_pPhysicsVisualization->Update();
 
     entt::registry& registry = GetActiveScene()->GetRegistry();
-    auto view = registry.view<const RigidBodyComponent, TransformComponent>();
-
-    view.each([](const auto entity, const RigidBodyComponent& rigidBodyComponent, TransformComponent& transformComponent) {
+    
+    auto rigidBodiesView = registry.view<const RigidBodyComponent, TransformComponent>();
+    rigidBodiesView.each([](const auto entity, const RigidBodyComponent& rigidBodyComponent, TransformComponent& transformComponent) {
         transformComponent.transform = rigidBodyComponent.GetWorldTransform();
+    });
+
+    auto ghostsView = registry.view<const GhostComponent, TransformComponent>();
+    ghostsView.each([](const auto entity, const GhostComponent& ghostComponent, TransformComponent& transformComponent) {
+        transformComponent.transform = ghostComponent.GetWorldTransform();
     });
 }
 
