@@ -1,7 +1,6 @@
 #include "scene/systems/landscape_system.hpp"
 
-#include <imgui.h>
-
+#include "imgui/imgui.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
 #include "scene/scene.hpp"
@@ -71,7 +70,7 @@ void LandscapeSystem::DrawDebugUI()
     ImGui::Begin("Landscape generator", &m_ShowDebugUI);
 
     ImGui::BeginGroup();
-    ImGui::Image(reinterpret_cast<ImTextureID>(landscapeComponent.DebugHeightmapTexture->GetTextureView().Get()), ImVec2(landscapeComponent.Width, landscapeComponent.Height));
+    ImGui::Image(landscapeComponent.DebugHeightmapTexture->GetTextureView(), ImVec2(landscapeComponent.Width, landscapeComponent.Height));
     ImGui::EndGroup();
 
     ImGui::SameLine();
