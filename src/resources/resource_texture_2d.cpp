@@ -22,7 +22,13 @@ namespace WingsOfSteel
 
 ResourceTexture2D::ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize)
 {
-    LoadFromMemory(label, pData, dataSize);
+    LoadFromMemoryCompressed(label, pData, dataSize);
+}
+
+
+ResourceTexture2D::ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+{
+    LoadFromMemoryUncompressed(label, pData, dataSize, width, height, channels);
 }
 
 ResourceTexture2D::~ResourceTexture2D()
@@ -57,7 +63,7 @@ void ResourceTexture2D::LoadInternal(FileReadResult result, FileSharedPtr pFile)
 {
     if (result == FileReadResult::Ok)
     {
-        LoadFromMemory(pFile->GetPath(), reinterpret_cast<const unsigned char*>(pFile->GetData().data()), pFile->GetData().size());
+        LoadFromMemoryCompressed(pFile->GetPath(), reinterpret_cast<const unsigned char*>(pFile->GetData().data()), pFile->GetData().size());
     }
     else
     {
@@ -65,17 +71,22 @@ void ResourceTexture2D::LoadInternal(FileReadResult result, FileSharedPtr pFile)
     }
 }
 
-void ResourceTexture2D::LoadFromMemory(const std::string& label, const unsigned char* pData, size_t dataSize)
+void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, const unsigned char* pData, size_t dataSize)
 {
     m_Channels = 4; // Setting desired channels to 4 as WGPU has no RGB8, just RGBA8.
-    int channelsInMemory;
+    int width = 0;
+    int height = 0; 
+    int channelsInMemory = 0;
     unsigned char* pTextureData = stbi_load_from_memory(
         reinterpret_cast<const stbi_uc*>(pData),
         dataSize,
-        &m_Width,
-        &m_Height,
+        &width,
+        &height,
         &channelsInMemory,
         m_Channels);
+
+    m_Width = static_cast<uint32_t>(width);
+    m_Height = static_cast<uint32_t>(height);
     const size_t textureDataSize = m_Width * m_Height * m_Channels;
 
     if (pTextureData)
@@ -84,7 +95,7 @@ void ResourceTexture2D::LoadFromMemory(const std::string& label, const unsigned 
         wgpu::TextureDescriptor textureDescriptor{
             .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
             .dimension = wgpu::TextureDimension::e2D,
-            .size = { static_cast<uint32_t>(m_Width), static_cast<uint32_t>(m_Height), 1 },
+            .size = { m_Width, m_Height, 1 },
             .format = wgpu::TextureFormat::RGBA8Unorm,
             .mipLevelCount = 1,
             .sampleCount = 1
@@ -99,8 +110,8 @@ void ResourceTexture2D::LoadFromMemory(const std::string& label, const unsigned 
 
         wgpu::TextureDataLayout sourceLayout{
             .offset = 0,
-            .bytesPerRow = m_Channels * static_cast<uint32_t>(m_Width),
-            .rowsPerImage = static_cast<uint32_t>(m_Height)
+            .bytesPerRow = m_Channels * m_Width,
+            .rowsPerImage = m_Height
         };
 
         const size_t textureDataSize = m_Width * m_Height * m_Channels;
@@ -123,6 +134,48 @@ void ResourceTexture2D::LoadFromMemory(const std::string& label, const unsigned 
         SetState(ResourceState::Error);
         Log::Error() << "Failed to load texture '" << label << "': " << stbi_failure_reason();
     }
+}
+
+void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+{
+    m_Width = width;
+    m_Height = height;
+    m_Channels = channels;
+    wgpu::TextureDescriptor textureDescriptor{
+        .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+        .dimension = wgpu::TextureDimension::e2D,
+        .size = { m_Width, m_Height, 1 },
+        .format = wgpu::TextureFormat::RGBA8Unorm,
+        .mipLevelCount = 1,
+        .sampleCount = 1
+    };
+
+    m_Texture = GetRenderSystem()->GetDevice().CreateTexture(&textureDescriptor);
+
+    wgpu::ImageCopyTexture destination{
+        .texture = m_Texture,
+        .aspect = wgpu::TextureAspect::All
+    };
+
+    wgpu::TextureDataLayout sourceLayout{
+        .offset = 0,
+        .bytesPerRow = m_Channels * m_Width,
+        .rowsPerImage = m_Height
+    };
+
+    const size_t textureDataSize = m_Width * m_Height * m_Channels;
+    GetRenderSystem()->GetDevice().GetQueue().WriteTexture(&destination, pData, dataSize, &sourceLayout, &textureDescriptor.size);
+
+    wgpu::TextureViewDescriptor textureViewDescriptor{
+        .label = label.c_str(),
+        .format = textureDescriptor.format,
+        .dimension = wgpu::TextureViewDimension::e2D,
+        .mipLevelCount = textureDescriptor.mipLevelCount,
+        .arrayLayerCount = 1
+    };
+    m_TextureView = m_Texture.CreateView(&textureViewDescriptor);
+
+    SetState(ResourceState::Loaded);
 }
 
 } // namespace WingsOfSteel
