@@ -27,7 +27,9 @@ private:
     ResourceShaderSharedPtr m_pShader;
     wgpu::RenderPipeline m_RenderPipeline;
     wgpu::Buffer m_VertexBuffer;
+    wgpu::Buffer m_IndexBuffer;
     uint32_t m_VertexCount{ 0 };
+    uint32_t m_IndexCount{ 0 };
     uint32_t m_Generation{ 0 };
     bool m_Initialized{ false };
 };
