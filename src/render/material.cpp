@@ -94,15 +94,41 @@ void Material::InitializeBindGroupLayout()
 
 void Material::InitializeBlendState()
 {
-    // TODO: If we ever want to support more complex materials we'll need to extend MaterialSpec.
-    m_BlendState = wgpu::BlendState{
-        .color{
-            .srcFactor = wgpu::BlendFactor::One,
-            .dstFactor = wgpu::BlendFactor::Zero },
-        .alpha{
-            .srcFactor = wgpu::BlendFactor::One,
-            .dstFactor = wgpu::BlendFactor::Zero }
-    };
+    switch (m_Spec.blendMode)
+    {
+    case BlendMode::None:
+        m_BlendState = wgpu::BlendState{
+            .color{
+                .srcFactor = wgpu::BlendFactor::One,
+                .dstFactor = wgpu::BlendFactor::Zero },
+            .alpha{
+                .srcFactor = wgpu::BlendFactor::One,
+                .dstFactor = wgpu::BlendFactor::Zero }
+        };
+        break;
+
+    case BlendMode::Blend:
+        m_BlendState = wgpu::BlendState{
+            .color{
+                .srcFactor = wgpu::BlendFactor::SrcAlpha,
+                .dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha },
+            .alpha{
+                .srcFactor = wgpu::BlendFactor::One,
+                .dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha }
+        };
+        break;
+
+    case BlendMode::Additive:
+        m_BlendState = wgpu::BlendState{
+            .color{
+                .srcFactor = wgpu::BlendFactor::SrcAlpha,
+                .dstFactor = wgpu::BlendFactor::One },
+            .alpha{
+                .srcFactor = wgpu::BlendFactor::One,
+                .dstFactor = wgpu::BlendFactor::One }
+        };
+        break;
+    }
 }
 
 } // namespace WingsOfSteel
