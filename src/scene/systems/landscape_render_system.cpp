@@ -63,14 +63,14 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     const glm::vec3 color = glm::vec3(0.3f, 0.5f, 0.3f); // Single green color for all vertices
 
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
-        x = glm::min(x, (int)(landscapeComponent.Width - 1));
-        z = glm::min(z, (int)(landscapeComponent.Height - 1));
+        x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
+        z = glm::clamp(z, 0, (int)(landscapeComponent.Height - 1));
 
         return landscapeComponent.Heightmap[x + z * landscapeComponent.Height] * maxHeight - maxHeight / 2.0f;
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)
-    std::vector<VertexP3C3> vertices;
+    std::vector<VertexP3C3N3> vertices;
     const uint32_t vertexGridSize = landscapeSize + 1;
     vertices.reserve(vertexGridSize * vertexGridSize);
 
@@ -82,7 +82,21 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
             float worldZ = z * cellSize - halfGridSize;
             float height = getHeight(x, z);
 
-            vertices.push_back({ glm::vec3(worldX, height, worldZ), color });
+            // Calculate normal using neighboring heights
+            // Sample heights around this vertex to compute tangent vectors
+            float heightLeft = getHeight(x - 1, z);
+            float heightRight = getHeight(x + 1, z);
+            float heightDown = getHeight(x, z - 1);
+            float heightUp = getHeight(x, z + 1);
+
+            // Compute tangent vectors
+            glm::vec3 tangentX = glm::vec3(2.0f * cellSize, heightRight - heightLeft, 0.0f);
+            glm::vec3 tangentZ = glm::vec3(0.0f, heightUp - heightDown, 2.0f * cellSize);
+
+            // Normal is the cross product of tangents
+            glm::vec3 normal = glm::normalize(glm::cross(tangentZ, tangentX));
+
+            vertices.push_back({ glm::vec3(worldX, height, worldZ), color, normal });
         }
     }
 
@@ -123,11 +137,11 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
         wgpu::BufferDescriptor bufferDescriptor{
             .label = "Landscape vertex buffer",
             .usage = wgpu::BufferUsage::Vertex,
-            .size = vertices.size() * sizeof(VertexP3C3),
+            .size = vertices.size() * sizeof(VertexP3C3N3),
             .mappedAtCreation = true
         };
         m_VertexBuffer = device.CreateBuffer(&bufferDescriptor);
-        memcpy(m_VertexBuffer.GetMappedRange(), vertices.data(), vertices.size() * sizeof(VertexP3C3));
+        memcpy(m_VertexBuffer.GetMappedRange(), vertices.data(), vertices.size() * sizeof(VertexP3C3N3));
         m_VertexBuffer.Unmap();
     }
 
@@ -189,7 +203,7 @@ void LandscapeRenderSystem::CreateRenderPipeline()
         .vertex = {
             .module = m_pShader->GetShaderModule(),
             .bufferCount = 1,
-            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3)
+            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3_N3)
         },
         .primitive = {
             .topology = wgpu::PrimitiveTopology::TriangleList,
