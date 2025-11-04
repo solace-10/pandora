@@ -361,6 +361,24 @@ void ResourceModel::SetupMaterials()
             .pEmissiveTexture = GetTexture(material.emissiveTexture.index)
         };
 
+        // GLTF has no support for additive blend mode. We extend the spec via a custom property in the material.
+        if (material.extras.IsObject())
+        {
+            const std::string additiveKey("additive");
+            if (material.extras.Has(additiveKey))
+            {
+                const tinygltf::Value& additiveValue = material.extras.Get(additiveKey);
+                if (additiveValue.IsBool())
+                {
+                    const bool isAdditive = additiveValue.Get<bool>();
+                    if (isAdditive)
+                    {
+                        spec.blendMode = BlendMode::Additive;
+                    }
+                }
+            }
+        }
+
         m_Materials.emplace_back(spec);
     }
 }
