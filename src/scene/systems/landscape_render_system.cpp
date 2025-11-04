@@ -1,10 +1,13 @@
 #include "scene/systems/landscape_render_system.hpp"
 
+#include <glm/glm.hpp>
+
 #include "pandora.hpp"
 #include "render/rendersystem.hpp"
 #include "render/vertex_types.hpp"
 #include "render/window.hpp"
 #include "resources/resource_system.hpp"
+#include "scene/components/landscape_component.hpp"
 #include "scene/scene.hpp"
 
 #include <array>
@@ -20,7 +23,6 @@ LandscapeRenderSystem::LandscapeRenderSystem()
     // Load the landscape shader
     GetResourceSystem()->RequestResource("/shaders/landscape.wgsl", [this](ResourceSharedPtr pResource) {
         m_pShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
-        GenerateGridGeometry();
         CreateRenderPipeline();
         m_Initialized = true;
     });
@@ -30,19 +32,49 @@ LandscapeRenderSystem::~LandscapeRenderSystem()
 {
 }
 
-void LandscapeRenderSystem::GenerateGridGeometry()
+void LandscapeRenderSystem::Update(float delta)
 {
-    constexpr int gridSize = 32;
-    constexpr float cellSize = 10.0f;
-    constexpr float halfGridSize = (gridSize * cellSize) / 2.0f;
+    if (GetActiveScene() == nullptr)
+    {
+        return;
+    }
+    
+    entt::registry& registry = GetActiveScene()->GetRegistry();
+    auto view = registry.view<const LandscapeComponent>();
+
+    view.each([this](const auto entity, const LandscapeComponent& landscapeComponent) {
+        if (landscapeComponent.Generation == this->m_Generation)
+        {
+            return;
+        }
+
+        GenerateGeometry(landscapeComponent);
+    });
+
+}
+
+void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscapeComponent)
+{
+    const uint32_t landscapeSize = landscapeComponent.Width;
+    constexpr float cellSize = 1.0f;
+    const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
     std::vector<VertexP3C3> vertices;
-    vertices.reserve(gridSize * gridSize * 6); // 2 triangles per cell, 3 vertices per triangle
+    vertices.reserve(landscapeSize * landscapeSize * 6); // 2 triangles per cell, 3 vertices per triangle
+
+    const float maxHeight = 80.0f;
+
+    auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
+        x = glm::min(x, (int)(landscapeComponent.Width - 1));
+        z = glm::min(z, (int)(landscapeComponent.Height - 1));
+
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Height] * maxHeight - maxHeight / 2.0f;       
+    };
 
     // Generate grid on XZ plane
-    for (int z = 0; z < gridSize; ++z)
+    for (int z = 0; z < landscapeSize; ++z)
     {
-        for (int x = 0; x < gridSize; ++x)
+        for (int x = 0; x < landscapeSize; ++x)
         {
             // Calculate world positions (centered at origin)
             float x0 = x * cellSize - halfGridSize;
@@ -55,10 +87,10 @@ void LandscapeRenderSystem::GenerateGridGeometry()
             glm::vec3 color = isEven ? glm::vec3(0.3f, 0.5f, 0.3f) : glm::vec3(0.2f, 0.4f, 0.2f);
 
             // Define quad corners
-            glm::vec3 v0(x0, 0.0f, z0); // Bottom-left
-            glm::vec3 v1(x1, 0.0f, z0); // Bottom-right
-            glm::vec3 v2(x1, 0.0f, z1); // Top-right
-            glm::vec3 v3(x0, 0.0f, z1); // Top-left
+            glm::vec3 v0(x0, getHeight(x, z), z0); // Bottom-left
+            glm::vec3 v1(x1, getHeight(x + 1, z), z0); // Bottom-right
+            glm::vec3 v2(x1, getHeight(x + 1, z + 1), z1); // Top-right
+            glm::vec3 v3(x0, getHeight(x, z + 1), z1); // Top-left
 
             // First triangle (v2, v1, v0) - counter-clockwise from above
             vertices.push_back({ v2, color });
@@ -88,6 +120,8 @@ void LandscapeRenderSystem::GenerateGridGeometry()
         memcpy(m_VertexBuffer.GetMappedRange(), vertices.data(), vertices.size() * sizeof(VertexP3C3));
         m_VertexBuffer.Unmap();
     }
+
+    m_Generation = landscapeComponent.Generation;
 }
 
 void LandscapeRenderSystem::CreateRenderPipeline()
