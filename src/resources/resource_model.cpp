@@ -680,7 +680,7 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
 
     wgpu::DepthStencilState depthState{
         .format = wgpu::TextureFormat::Depth32Float,
-        .depthWriteEnabled = true,
+        .depthWriteEnabled = (renderData.material->GetBlendMode() == BlendMode::None),
         .depthCompare = wgpu::CompareFunction::Less
     };
 

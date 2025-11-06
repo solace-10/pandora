@@ -47,6 +47,7 @@ public:
     inline ResourceTexture2D* GetNormalTexture() const { return m_Spec.pNormalTexture; }
     inline ResourceTexture2D* GetOcclusionTexture() const { return m_Spec.pOcclusionTexture; }
     inline ResourceTexture2D* GetEmissiveTexture() const { return m_Spec.pEmissiveTexture; }
+    inline BlendMode GetBlendMode() const { return m_Spec.blendMode; }
     inline const wgpu::BindGroup& GetBindGroup() const { return m_BindGroup; }
     inline const wgpu::BindGroupLayout& GetBindGroupLayout() const { return m_BindGroupLayout; }
     inline const wgpu::BlendState& GetBlendState() const { return m_BlendState; }
