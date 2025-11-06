@@ -93,7 +93,39 @@ VertexBufferSchemas::VertexBufferSchemas()
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
-    } 
+    }
+
+    {
+        Schema& schema = GetSchema(VertexFormat::VERTEX_FORMAT_P3_C3_N3);
+        schema.attributes.push_back( // Position
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 0,
+                .shaderLocation = 0
+            }
+        );
+        schema.attributes.push_back( // Color
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 3 * sizeof(float),
+                .shaderLocation = 1
+            }
+        );
+        schema.attributes.push_back( // Normal
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 6 * sizeof(float),
+                .shaderLocation = 2
+            }
+        );
+
+        schema.layout = {
+            .arrayStride = sizeof(VertexP3C3N3),
+            .stepMode = wgpu::VertexStepMode::Vertex,
+            .attributeCount = schema.attributes.size(),
+            .attributes = schema.attributes.data()
+        };
+    }
 }
 
 const wgpu::VertexBufferLayout* VertexBufferSchemas::GetLayout(VertexFormat vertexFormat) const
