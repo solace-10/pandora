@@ -24,6 +24,7 @@ public:
     void DrawDebugUI() override;
 
 private:
+    void GenerateInternal(LandscapeComponent& landscapeComponent);
     void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
     EntityWeakPtr m_pLandscapeEntity;
 };

@@ -59,14 +59,13 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     constexpr float cellSize = 1.0f;
     const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
-    const float maxHeight = 80.0f;
+    const float maxHeight = landscapeComponent.Height;
     const glm::vec3 color = glm::vec3(0.3f, 0.5f, 0.3f); // Single green color for all vertices
 
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
         x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
-        z = glm::clamp(z, 0, (int)(landscapeComponent.Height - 1));
-
-        return landscapeComponent.Heightmap[x + z * landscapeComponent.Height] * maxHeight - maxHeight / 2.0f;
+        z = glm::clamp(z, 0, (int)(landscapeComponent.Length - 1));
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - maxHeight / 2.0f;
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)
@@ -78,23 +77,23 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     {
         for (int x = 0; x < vertexGridSize; ++x)
         {
-            float worldX = x * cellSize - halfGridSize;
-            float worldZ = z * cellSize - halfGridSize;
-            float height = getHeight(x, z);
+            const float worldX = x * cellSize - halfGridSize;
+            const float worldZ = z * cellSize - halfGridSize;
+            const float height = getHeight(x, z);
 
             // Calculate normal using neighboring heights
             // Sample heights around this vertex to compute tangent vectors
-            float heightLeft = getHeight(x - 1, z);
-            float heightRight = getHeight(x + 1, z);
-            float heightDown = getHeight(x, z - 1);
-            float heightUp = getHeight(x, z + 1);
+            const float heightLeft = getHeight(x - 1, z);
+            const float heightRight = getHeight(x + 1, z);
+            const float heightDown = getHeight(x, z - 1);
+            const float heightUp = getHeight(x, z + 1);
 
             // Compute tangent vectors
-            glm::vec3 tangentX = glm::vec3(2.0f * cellSize, heightRight - heightLeft, 0.0f);
-            glm::vec3 tangentZ = glm::vec3(0.0f, heightUp - heightDown, 2.0f * cellSize);
+            const glm::vec3 tangentX = glm::vec3(2.0f * cellSize, heightRight - heightLeft, 0.0f);
+            const glm::vec3 tangentZ = glm::vec3(0.0f, heightUp - heightDown, 2.0f * cellSize);
 
             // Normal is the cross product of tangents
-            glm::vec3 normal = glm::normalize(glm::cross(tangentZ, tangentX));
+            const glm::vec3 normal = glm::normalize(glm::cross(tangentZ, tangentX));
 
             vertices.push_back({ glm::vec3(worldX, height, worldZ), color, normal });
         }
