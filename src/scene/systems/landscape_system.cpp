@@ -3,6 +3,7 @@
 #include <FastNoise/FastNoise.h>
 
 #include "FastNoise/Generators/Fractal.h"
+#include "imgui.h"
 #include "imgui/imgui.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
@@ -28,10 +29,13 @@ void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
     }
 
     m_pLandscapeEntity = pLandscapeEntity;
-
     LandscapeComponent& landscapeComponent = pLandscapeEntity->GetComponent<LandscapeComponent>();
+    GenerateInternal(landscapeComponent);
+}
 
-    const size_t heightmapSize = landscapeComponent.Width * landscapeComponent.Height;
+void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
+{
+    const size_t heightmapSize = landscapeComponent.Width * landscapeComponent.Length;
     if (landscapeComponent.Heightmap.size() != heightmapSize)
     {
         landscapeComponent.Heightmap.resize(heightmapSize);
@@ -41,9 +45,9 @@ void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
     auto noiseFractal = FastNoise::New<FastNoise::FractalFBm>();
 
     noiseFractal->SetSource(noiseSimplex);
-    noiseFractal->SetOctaveCount(4);
+    noiseFractal->SetOctaveCount(landscapeComponent.Octaves);
 
-    noiseFractal->GenUniformGrid2D(landscapeComponent.Heightmap.data(), 0, 0, landscapeComponent.Width, landscapeComponent.Height, 0.0025f, 1337);
+    noiseFractal->GenUniformGrid2D(landscapeComponent.Heightmap.data(), 0, 0, landscapeComponent.Width, landscapeComponent.Length, landscapeComponent.Frequency, landscapeComponent.Seed);
 
     for (float& height : landscapeComponent.Heightmap)
     {
@@ -58,7 +62,7 @@ void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
 void LandscapeSystem::GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent)
 {
     std::vector<uint8_t> textureData;
-    textureData.resize(landscapeComponent.Width * landscapeComponent.Height * 4);
+    textureData.resize(landscapeComponent.Width * landscapeComponent.Length * 4);
 
     for (size_t i = 0; i < landscapeComponent.Heightmap.size(); ++i)
     {
@@ -69,7 +73,7 @@ void LandscapeSystem::GenerateDebugHeightmapTexture(LandscapeComponent& landscap
         textureData[index + 2] = height;
         textureData[index + 3] = 255;
     }
-    landscapeComponent.DebugHeightmapTexture = std::make_unique<ResourceTexture2D>("Heightmap", textureData.data(), textureData.size(), landscapeComponent.Width, landscapeComponent.Height, 4);
+    landscapeComponent.DebugHeightmapTexture = std::make_unique<ResourceTexture2D>("Heightmap", textureData.data(), textureData.size(), landscapeComponent.Width, landscapeComponent.Length, 4);
 }
 
 void LandscapeSystem::DrawDebugUI()
@@ -87,21 +91,51 @@ void LandscapeSystem::DrawDebugUI()
 
     LandscapeComponent& landscapeComponent = pLandscapeEntity->GetComponent<LandscapeComponent>();
 
-    ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Landscape generator", &m_ShowDebugUI);
+    ImGui::Begin("Landscape generator", &m_ShowDebugUI, ImGuiWindowFlags_AlwaysAutoResize);
 
     ImGui::BeginGroup();
-    ImGui::Image(landscapeComponent.DebugHeightmapTexture->GetTextureView(), ImVec2(landscapeComponent.Width, landscapeComponent.Height));
+    ImGui::PushItemWidth(300);
+
+    int seed = static_cast<int>(landscapeComponent.Seed);
+    if (ImGui::DragInt("Seed", &seed, 1.0f, 0, 65536))
+    {
+        landscapeComponent.Seed = static_cast<uint32_t>(seed);
+    }
+    
+    int landscapeSize = static_cast<int>(landscapeComponent.Width);
+    if (ImGui::DragInt("Size", &landscapeSize, 1.0f, 32, 1024))
+    {
+        landscapeComponent.Width = static_cast<uint32_t>(landscapeSize);
+        landscapeComponent.Length = static_cast<uint32_t>(landscapeSize);
+    }
+
+    ImGui::DragFloat("Height", &landscapeComponent.Height, 1.0f, 8.0f, 500.0f, "%.2f");
+
+
+    int octaves = static_cast<int>(landscapeComponent.Octaves);
+    if (ImGui::DragInt("Octaves", &octaves, 1.0f, 1, 10))
+    {
+        landscapeComponent.Octaves = static_cast<uint32_t>(octaves);
+    }
+
+    ImGui::DragFloat("Frequency", &landscapeComponent.Frequency, 0.0001f, 0.0f, 0.01f, "%.4f");
+    
+    if (ImGui::Button("Generate"))
+    {
+        GenerateInternal(landscapeComponent);
+    }
+    ImGui::PopItemWidth();
     ImGui::EndGroup();
 
     ImGui::SameLine();
 
     ImGui::BeginGroup();
-    if (ImGui::Button("Generate"))
+    if (landscapeComponent.DebugHeightmapTexture)
     {
-        // Placeholder - will implement generation logic later
+        ImGui::Image(landscapeComponent.DebugHeightmapTexture->GetTextureView(), ImVec2(512, 512));
     }
     ImGui::EndGroup();
+    
     ImGui::End();
 }
 

@@ -18,9 +18,13 @@ public:
     ~LandscapeComponent() = default;
 
     uint32_t Seed{ 0 };
-    uint32_t Width{ 0 };
-    uint32_t Height{ 0 };
-    uint32_t Generation{ 0 };
+    uint32_t Width{ 32 };
+    uint32_t Length{ 32 };
+    float Height{ 40.0f }; // Maximum height the landscape will be generated to, in meters.
+    float CellSize{ 1.0f }; // Cell size, in meters.
+    uint32_t Generation{ 0 }; // Current generation iteration; used by the renderer to know when the component is stale.
+    uint32_t Octaves{ 4 };
+    float Frequency{ 0.002 };
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
 
