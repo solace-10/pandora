@@ -4,6 +4,7 @@
 #include "pandora.hpp"
 #include "physics/collision_shape.hpp"
 #include "render/debug_render.hpp"
+#include "render/instance_parameter_buffer.hpp"
 #include "render/rendersystem.hpp"
 #include "render/window.hpp"
 #include "resources/resource_system.hpp"
@@ -83,7 +84,7 @@ ResourceType ResourceModel::GetResourceType() const
     return ResourceType::Model;
 }
 
-void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vector<glm::mat4>& instanceTransforms)
+void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vector<glm::mat4>& instanceTransforms, const std::vector<std::unordered_map<std::string, float>>& instanceShaderParameters)
 {
     m_InstanceCount = std::min(instanceTransforms.size(), MaxInstanceCount);
     std::copy_n(instanceTransforms.begin(), m_InstanceCount, m_InstanceUniforms.data.instanceTransforms.begin());
@@ -91,6 +92,24 @@ void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vecto
 
     GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_InstanceUniforms.buffer, 0, m_InstanceUniforms.data.instanceTransforms.data(), sizeof(InstanceUniformsData));
     renderPass.SetBindGroup(2, m_InstanceUniforms.bindGroup);
+
+    // Update dynamic uniforms for materials with shader parameters
+    if (!instanceShaderParameters.empty() && !m_Materials.empty())
+    {
+        for (auto& material : m_Materials)
+        {
+            if (material.HasDynamicUniforms())
+            {
+                const auto& paramDefinitions = material.GetParameterDefinitions();
+                DynamicUniformsData dynamicData = InstanceParameterBuffer::PackParameters(paramDefinitions, instanceShaderParameters);
+                GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
+                    material.GetDynamicUniformsBuffer(),
+                    0,
+                    &dynamicData,
+                    sizeof(DynamicUniformsData));
+            }
+        }
+    }
 
     for (auto& node : m_Nodes)
     {
@@ -349,21 +368,13 @@ void ResourceModel::SetupMaterials()
 
     for (auto& material : m_pModel->materials)
     {
-        MaterialSpec spec{
-            .baseColorFactor = ToVec4(material.pbrMetallicRoughness.baseColorFactor),
-            .metallicFactor = static_cast<float>(material.pbrMetallicRoughness.metallicFactor),
-            .roughnessFactor = static_cast<float>(material.pbrMetallicRoughness.roughnessFactor),
-            .emissiveFactor = ToVec3(material.emissiveFactor),
-            .pBaseColorTexture = GetTexture(material.pbrMetallicRoughness.baseColorTexture.index),
-            .pMetallicRoughnessTexture = GetTexture(material.pbrMetallicRoughness.metallicRoughnessTexture.index),
-            .pNormalTexture = GetTexture(material.normalTexture.index),
-            .pOcclusionTexture = GetTexture(material.occlusionTexture.index),
-            .pEmissiveTexture = GetTexture(material.emissiveTexture.index)
-        };
+        // Parse shader parameters from GLTF extras first
+        std::vector<ShaderParameterDefinition> paramDefinitions;
+        BlendMode blendMode = BlendMode::None;
 
-        // GLTF has no support for additive blend mode. We extend the spec via a custom property in the material.
         if (material.extras.IsObject())
         {
+            // GLTF has no support for additive blend mode. We extend the spec via a custom property in the material.
             const std::string additiveKey("additive");
             if (material.extras.Has(additiveKey))
             {
@@ -373,11 +384,57 @@ void ResourceModel::SetupMaterials()
                     const bool isAdditive = additiveValue.Get<bool>();
                     if (isAdditive)
                     {
-                        spec.blendMode = BlendMode::Additive;
+                        blendMode = BlendMode::Additive;
                     }
                 }
             }
+
+            // Parse shader parameters from GLTF extras
+            static const std::string shaderParameterPrefix("shader_parameter_");
+            size_t currentOffset = 0;
+            for (const std::string& key : material.extras.Keys())
+            {
+                if (!key.starts_with(shaderParameterPrefix))
+                {
+                    continue;
+                }
+
+                ShaderParameterDefinition def;
+                def.name = key.substr(shaderParameterPrefix.length());
+
+                const tinygltf::Value& value = material.extras.Get(key);
+                if (value.IsReal())
+                {
+                    def.type = ShaderParameterType::Float;
+                    def.componentCount = 1;
+                    def.defaultValue[0] = static_cast<float>(value.GetNumberAsDouble());
+                }
+                else
+                {
+                    Log::Error() << "Unsupported shader parameter type.";
+                    continue;
+                }
+
+                def.offset = currentOffset;
+                currentOffset += def.componentCount;
+                paramDefinitions.push_back(def);
+            }
         }
+
+        // Create MaterialSpec with shader parameters
+        MaterialSpec spec{
+            .baseColorFactor = ToVec4(material.pbrMetallicRoughness.baseColorFactor),
+            .metallicFactor = static_cast<float>(material.pbrMetallicRoughness.metallicFactor),
+            .roughnessFactor = static_cast<float>(material.pbrMetallicRoughness.roughnessFactor),
+            .emissiveFactor = ToVec3(material.emissiveFactor),
+            .pBaseColorTexture = GetTexture(material.pbrMetallicRoughness.baseColorTexture.index),
+            .pMetallicRoughnessTexture = GetTexture(material.pbrMetallicRoughness.metallicRoughnessTexture.index),
+            .pNormalTexture = GetTexture(material.normalTexture.index),
+            .pOcclusionTexture = GetTexture(material.occlusionTexture.index),
+            .pEmissiveTexture = GetTexture(material.emissiveTexture.index),
+            .blendMode = blendMode,
+            .shaderParameters = paramDefinitions
+        };
 
         m_Materials.emplace_back(spec);
     }

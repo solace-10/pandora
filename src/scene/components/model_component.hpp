@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 
 #include "resources/resource_model.hpp"
 #include "resources/resource_system.hpp"
@@ -18,13 +19,13 @@ public:
     ~ModelComponent() {}
 
     ResourceModelSharedPtr GetModel() const { return m_pResource; }
-    
-    void SetModel(ResourceModelSharedPtr pModel) 
+
+    void SetModel(ResourceModelSharedPtr pModel)
     {
         m_pResource = pModel;
         m_ResourcePath = pModel->GetPath();
     }
-    
+
     void SetModel(const std::string& resourcePath)
     {
         m_ResourcePath = resourcePath;
@@ -38,9 +39,21 @@ public:
         SetModel(Json::DeserializeString(pContext, json, "resource"));
     }
 
+    // Shader parameter API
+    void SetShaderParameter(const std::string& name, float value)
+    {
+        m_ShaderParameters[name] = value;
+    }
+
+    const std::unordered_map<std::string, float>& GetShaderParameters() const
+    {
+        return m_ShaderParameters;
+    }
+
 private:
     ResourceModelSharedPtr m_pResource;
     std::string m_ResourcePath;
+    std::unordered_map<std::string, float> m_ShaderParameters;
 };
 
 REGISTER_COMPONENT(ModelComponent, "model")
