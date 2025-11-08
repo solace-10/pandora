@@ -48,7 +48,7 @@ public:
     void Load(const std::string& path) override;
     ResourceType GetResourceType() const override;
 
-    void Render(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms);
+    void Render(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms, const std::vector<std::unordered_map<std::string, float>>& instanceShaderParameters = {});
 
     const std::vector<AttachmentPoint>& GetAttachmentPoints() const { return m_AttachmentPoints; }
     std::optional<AttachmentPoint> GetAttachmentPoint(const std::string& name) const;

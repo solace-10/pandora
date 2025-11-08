@@ -33,6 +33,7 @@ void ModelRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
     for (auto& instanceData : m_InstanceData)
     {
         instanceData.transforms.clear();
+        instanceData.shaderParameters.clear();
     }
 
     view.each([this](const auto entity, ModelComponent& modelComponent, TransformComponent& transformComponent) {
@@ -48,6 +49,7 @@ void ModelRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
 
             m_InstanceData[idx].pModel = pResourceModel;
             m_InstanceData[idx].transforms.push_back(transformComponent.transform);
+            m_InstanceData[idx].shaderParameters.push_back(modelComponent.GetShaderParameters());
         }
     });
 
@@ -56,7 +58,7 @@ void ModelRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
         ResourceModelSharedPtr pModel = instanceData.pModel.lock();
         if (pModel && !instanceData.transforms.empty())
         {
-            pModel->Render(renderPass, instanceData.transforms);
+            pModel->Render(renderPass, instanceData.transforms, instanceData.shaderParameters);
         }
     }
 }

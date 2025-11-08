@@ -10,6 +10,7 @@ namespace WingsOfSteel
 
 Material::Material(const MaterialSpec& materialSpec)
     : m_Spec(materialSpec)
+    , m_ParameterDefinitions(materialSpec.shaderParameters)
 {
     InitializeBindGroupLayout();
     InitializeBlendState();
@@ -77,6 +78,39 @@ void Material::InitializeBindGroupLayout()
         }
     }
 
+    // Add dynamic uniforms buffer if material has shader parameters
+    if (!m_ParameterDefinitions.empty())
+    {
+        // Create uniform buffer for dynamic parameters
+        wgpu::BufferDescriptor bufferDesc{
+            .label = "Dynamic Uniforms Buffer",
+            .usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst,
+            .size = sizeof(DynamicUniformsData)
+        };
+        m_DynamicUniformsBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDesc);
+
+        // Next available binding after sampler (0) and textures (1-5)
+        const uint32_t dynamicUniformsBinding = 6;
+
+        // Add layout entry for dynamic uniforms
+        wgpu::BindGroupLayoutEntry dynamicUniformsLayoutEntry{
+            .binding = dynamicUniformsBinding,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .buffer{
+                .type = wgpu::BufferBindingType::Uniform,
+                .minBindingSize = sizeof(DynamicUniformsData) }
+        };
+        layoutEntries.push_back(dynamicUniformsLayoutEntry);
+
+        // Add bind group entry for dynamic uniforms
+        wgpu::BindGroupEntry dynamicUniformsEntry{
+            .binding = dynamicUniformsBinding,
+            .buffer = m_DynamicUniformsBuffer,
+            .size = sizeof(DynamicUniformsData)
+        };
+        entries.push_back(dynamicUniformsEntry);
+    }
+
     wgpu::BindGroupLayoutDescriptor bindGroupLayoutDescriptor{
         .entryCount = layoutEntries.size(),
         .entries = layoutEntries.data()
@@ -129,6 +163,18 @@ void Material::InitializeBlendState()
         };
         break;
     }
+}
+
+std::optional<uint32_t> Material::GetParameterOffset(const std::string& name) const
+{
+    for (const auto& param : m_ParameterDefinitions)
+    {
+        if (param.name == name)
+        {
+            return param.offset;
+        }
+    }
+    return std::nullopt;
 }
 
 } // namespace WingsOfSteel

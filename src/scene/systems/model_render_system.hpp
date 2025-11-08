@@ -1,5 +1,9 @@
 #pragma once
 
+#include <unordered_map>
+#include <string>
+#include <vector>
+
 #include <webgpu/webgpu_cpp.h>
 
 #include "resources/resource_model.hpp"
@@ -30,6 +34,7 @@ private:
     {
         ResourceModelWeakPtr pModel;
         ResourceModel::InstanceTransforms transforms;
+        std::vector<std::unordered_map<std::string, float>> shaderParameters;
     };
 
     std::vector<InstanceData> m_InstanceData;

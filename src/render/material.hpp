@@ -1,5 +1,11 @@
 #pragma once
 
+#include <array>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <webgpu/webgpu_cpp.h>
@@ -17,6 +23,29 @@ enum class BlendMode
     Additive
 };
 
+enum class ShaderParameterType
+{
+    Float,
+    Vec2,
+    Vec3,
+    Vec4
+};
+
+struct ShaderParameterDefinition
+{
+    std::string name;
+    ShaderParameterType type;
+    uint32_t offset; // Offset in floats within the params array
+    uint32_t componentCount; // 1 for float, 2 for vec2, etc.
+    float defaultValue[4]{ 0.0f, 0.0f, 0.0f, 0.0f };
+};
+
+struct DynamicUniformsData
+{
+    static constexpr size_t MaxParams = 8; // 8 vec4s = 32 floats total
+    std::array<glm::vec4, MaxParams> params;
+};
+
 struct MaterialSpec
 {
     glm::vec4 baseColorFactor{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -29,6 +58,7 @@ struct MaterialSpec
     ResourceTexture2D* pOcclusionTexture{ nullptr };
     ResourceTexture2D* pEmissiveTexture{ nullptr };
     BlendMode blendMode{ BlendMode::None };
+    std::vector<ShaderParameterDefinition> shaderParameters;
 };
 
 DECLARE_SMART_PTR(Material);
@@ -52,6 +82,12 @@ public:
     inline const wgpu::BindGroupLayout& GetBindGroupLayout() const { return m_BindGroupLayout; }
     inline const wgpu::BlendState& GetBlendState() const { return m_BlendState; }
 
+    // Dynamic shader parameters
+    std::optional<uint32_t> GetParameterOffset(const std::string& name) const;
+    inline bool HasDynamicUniforms() const { return !m_ParameterDefinitions.empty(); }
+    inline const wgpu::Buffer& GetDynamicUniformsBuffer() const { return m_DynamicUniformsBuffer; }
+    inline const std::vector<ShaderParameterDefinition>& GetParameterDefinitions() const { return m_ParameterDefinitions; }
+
 private:
     void InitializeBindGroupLayout();
     void InitializeBlendState();
@@ -60,6 +96,10 @@ private:
     wgpu::BindGroup m_BindGroup;
     wgpu::BindGroupLayout m_BindGroupLayout;
     wgpu::BlendState m_BlendState;
+
+    // Dynamic uniforms (included in group 3)
+    std::vector<ShaderParameterDefinition> m_ParameterDefinitions;
+    wgpu::Buffer m_DynamicUniformsBuffer;
 };
 
 } // namespace WingsOfSteel
