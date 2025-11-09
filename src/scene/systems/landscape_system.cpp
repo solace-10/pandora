@@ -110,7 +110,7 @@ void LandscapeSystem::DrawDebugUI()
     }
 
     ImGui::DragFloat("Height", &landscapeComponent.Height, 1.0f, 8.0f, 500.0f, "%.2f");
-
+    ImGui::DragFloat("Water level", &landscapeComponent.WaterLevel, 1.0f, 0.0f, 500.0f, "%.2f");
 
     int octaves = static_cast<int>(landscapeComponent.Octaves);
     if (ImGui::DragInt("Octaves", &octaves, 1.0f, 1, 10))
@@ -118,7 +118,7 @@ void LandscapeSystem::DrawDebugUI()
         landscapeComponent.Octaves = static_cast<uint32_t>(octaves);
     }
 
-    ImGui::DragFloat("Frequency", &landscapeComponent.Frequency, 0.0001f, 0.0f, 0.01f, "%.4f");
+    ImGui::DragFloat("Frequency", &landscapeComponent.Frequency, 0.0001f, 0.0f, 0.03f, "%.4f");
     
     if (ImGui::Button("Generate"))
     {

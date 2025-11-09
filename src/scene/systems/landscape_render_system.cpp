@@ -56,7 +56,7 @@ void LandscapeRenderSystem::Update(float delta)
 void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscapeComponent)
 {
     const uint32_t landscapeSize = landscapeComponent.Width;
-    constexpr float cellSize = 1.0f;
+    constexpr float cellSize = 10.0f;
     const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
     const float maxHeight = landscapeComponent.Height;
@@ -65,7 +65,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
         x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
         z = glm::clamp(z, 0, (int)(landscapeComponent.Length - 1));
-        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - maxHeight / 2.0f;
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - landscapeComponent.WaterLevel;
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)
