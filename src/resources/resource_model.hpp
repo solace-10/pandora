@@ -55,7 +55,6 @@ public:
     CollisionShapeSharedPtr GetCollisionShape() const { return m_pCollisionShape; }
 
     Id GetId() const { return m_Id; }
-    static constexpr size_t MaxInstanceCount = 256;
 
 private:
     using NodeIndex = uint32_t;
@@ -171,15 +170,10 @@ private:
     std::vector<LocalUniforms> m_PerNodeLocalUniforms;
     wgpu::BindGroupLayout m_LocalUniformsBindGroupLayout;
 
-    struct InstanceUniformsData
-    {
-        std::array<glm::mat4, ResourceModel::MaxInstanceCount> instanceTransforms;
-    };
-
     struct InstanceUniforms
     {
         uint32_t numInstances{ 0 };
-        InstanceUniformsData data;
+        uint32_t bufferCapacity{ 0 };
         wgpu::Buffer buffer;
         wgpu::BindGroup bindGroup;
     };
