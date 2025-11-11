@@ -86,11 +86,49 @@ ResourceType ResourceModel::GetResourceType() const
 
 void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vector<glm::mat4>& instanceTransforms, const std::vector<std::unordered_map<std::string, float>>& instanceShaderParameters)
 {
-    m_InstanceCount = std::min(instanceTransforms.size(), MaxInstanceCount);
-    std::copy_n(instanceTransforms.begin(), m_InstanceCount, m_InstanceUniforms.data.instanceTransforms.begin());
-    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_InstanceUniforms.buffer, 0, &m_InstanceUniforms.data, sizeof(InstanceUniformsData));
+    using namespace wgpu;
 
-    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_InstanceUniforms.buffer, 0, m_InstanceUniforms.data.instanceTransforms.data(), sizeof(InstanceUniformsData));
+    m_InstanceCount = instanceTransforms.size();
+
+    // Resize buffer if needed (grows but never shrinks to avoid thrashing)
+    if (m_InstanceCount > m_InstanceUniforms.bufferCapacity)
+    {
+        size_t newCapacity = m_InstanceUniforms.bufferCapacity;
+        while (newCapacity < m_InstanceCount)
+        {
+            newCapacity *= 2;
+        }
+
+        // Recreate buffer and bind group with new size
+        BufferDescriptor bufferDescriptor{
+            .label = "Instance transforms storage buffer",
+            .usage = BufferUsage::CopyDst | BufferUsage::Storage,
+            .size = newCapacity * sizeof(glm::mat4)
+        };
+        m_InstanceUniforms.buffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDescriptor);
+
+        BindGroupEntry bindGroupEntry{
+            .binding = 0,
+            .buffer = m_InstanceUniforms.buffer,
+            .offset = 0,
+            .size = newCapacity * sizeof(glm::mat4)
+        };
+        BindGroupDescriptor bindGroupDescriptor{
+            .layout = m_InstanceUniformsBindGroupLayout,
+            .entryCount = 1,
+            .entries = &bindGroupEntry
+        };
+        m_InstanceUniforms.bindGroup = GetRenderSystem()->GetDevice().CreateBindGroup(&bindGroupDescriptor);
+
+        m_InstanceUniforms.bufferCapacity = newCapacity;
+    }
+
+    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
+        m_InstanceUniforms.buffer,
+        0,
+        instanceTransforms.data(),
+        m_InstanceCount * sizeof(glm::mat4)
+    );
     renderPass.SetBindGroup(2, m_InstanceUniforms.bindGroup);
 
     // Update dynamic uniforms for materials with shader parameters
@@ -943,36 +981,37 @@ void ResourceModel::CreateInstanceUniforms()
 {
     using namespace wgpu;
 
-    static_assert(sizeof(InstanceUniformsData) % 16 == 0);
-
     BindGroupLayoutEntry bindGroupLayoutEntry{
         .binding = 0,
         .visibility = ShaderStage::Vertex | ShaderStage::Fragment,
         .buffer{
-            .type = BufferBindingType::Uniform,
-            .minBindingSize = sizeof(InstanceUniformsData) }
+            .type = BufferBindingType::ReadOnlyStorage,
+            .minBindingSize = 0 }
     };
 
     BindGroupLayoutDescriptor bindGroupLayoutDescriptor{
-        .label = "Instance uniforms layout",
+        .label = "Instance transforms storage layout",
         .entryCount = 1,
         .entries = &bindGroupLayoutEntry
     };
     m_InstanceUniformsBindGroupLayout = GetRenderSystem()->GetDevice().CreateBindGroupLayout(&bindGroupLayoutDescriptor);
 
+    // Start with a small initial capacity (32 instances), will grow dynamically as needed
+    const size_t initialCapacity = 32;
     BufferDescriptor bufferDescriptor{
-        .label = "Instance uniforms buffer",
-        .usage = BufferUsage::CopyDst | BufferUsage::Uniform,
-        .size = sizeof(InstanceUniformsData)
+        .label = "Instance transforms storage buffer",
+        .usage = BufferUsage::CopyDst | BufferUsage::Storage,
+        .size = initialCapacity * sizeof(glm::mat4)
     };
 
     m_InstanceUniforms.buffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDescriptor);
+    m_InstanceUniforms.bufferCapacity = initialCapacity;
 
     BindGroupEntry bindGroupEntry{
         .binding = 0,
         .buffer = m_InstanceUniforms.buffer,
         .offset = 0,
-        .size = sizeof(InstanceUniformsData)
+        .size = initialCapacity * sizeof(glm::mat4)
     };
 
     BindGroupDescriptor bindGroupDescriptor{
