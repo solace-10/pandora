@@ -7,9 +7,8 @@
 #include <magic_enum.hpp>
 
 #include "core/log.hpp"
-#include "imgui/imgui_system.hpp"
 #include "pandora.hpp"
-#include "render/debug_render.hpp"
+#include "render/lighting/lighting_system.hpp"
 #include "render/render_pass/base_render_pass.hpp"
 #include "render/render_pass/ui_render_pass.hpp"
 #include "render/shader_compiler.hpp"
@@ -18,10 +17,7 @@
 #include "render/window.hpp"
 #include "scene/camera.hpp"
 #include "scene/components/camera_component.hpp"
-#include "scene/components/model_component.hpp"
-#include "scene/components/transform_component.hpp"
 #include "scene/scene.hpp"
-#include "scene/systems/model_render_system.hpp"
 
 namespace WingsOfSteel
 {
@@ -83,6 +79,7 @@ void RenderSystem::InitializeInternal()
     m_pVertexBufferSchemas = std::make_unique<VertexBufferSchemas>();
     m_pShaderCompiler = std::make_unique<ShaderCompiler>();
     m_pShaderEditor = std::make_unique<ShaderEditor>();
+    m_pLightingSystem = std::make_unique<LightingSystem>();
 
     AddRenderPass(std::make_shared<BaseRenderPass>());
     AddRenderPass(std::make_shared<UIRenderPass>());
@@ -96,6 +93,7 @@ void RenderSystem::Update()
 #endif
 
     GetShaderEditor()->Update();
+    GetLightingSystem()->Update();
 
     wgpu::CommandEncoderDescriptor commandEncoderDescriptor{
         .label = "Pandora default command encoder"
@@ -309,6 +307,11 @@ const wgpu::VertexBufferLayout* RenderSystem::GetVertexBufferLayout(VertexFormat
     {
         return nullptr;
     }
+}
+
+LightingSystem* RenderSystem::GetLightingSystem() const
+{
+    return m_pLightingSystem.get();
 }
 
 ShaderCompiler* RenderSystem::GetShaderCompiler() const

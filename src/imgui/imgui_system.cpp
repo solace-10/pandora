@@ -10,13 +10,12 @@
 #include "imgui/fonts/icons_font_awesome_data.hpp"
 #include "imgui/fonts/ubuntu_mono_data.hpp"
 #include "pandora.hpp"
+#include "render/lighting/lighting_system.hpp"
 #include "render/debug_render.hpp"
 #include "render/debug_render_demo.hpp"
 #include "render/rendersystem.hpp"
 #include "render/shader_editor.hpp"
 #include "render/window.hpp"
-#include "resources/resource_font.hpp"
-#include "resources/resource_system.hpp"
 
 namespace WingsOfSteel
 {
@@ -76,6 +75,13 @@ void ImGuiSystem::Update()
                 }
 
                 ImGui::EndMenu();
+            }
+
+            LightingSystem* pLightingSystem = GetRenderSystem()->GetLightingSystem();
+            bool showLighting = pLightingSystem->IsDebugUIVisible();
+            if (ImGui::MenuItem("Lighting", nullptr, &showLighting))
+            {
+                pLightingSystem->ShowDebugUI(showLighting);
             }
 
             if (ImGui::MenuItem("Shader editor", nullptr, &m_ShowShaderEditor))
