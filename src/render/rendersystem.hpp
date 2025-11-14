@@ -15,6 +15,7 @@ namespace WingsOfSteel
 {
 
 DECLARE_SMART_PTR(DebugRender);
+DECLARE_SMART_PTR(LightingSystem);
 DECLARE_SMART_PTR(RenderPass);
 DECLARE_SMART_PTR(ShaderCompiler);
 DECLARE_SMART_PTR(ShaderEditor);
@@ -43,6 +44,7 @@ public:
     wgpu::BindGroupLayout& GetGlobalUniformsLayout();
     const wgpu::VertexBufferLayout* GetVertexBufferLayout(VertexFormat vertexFormat) const;
 
+    LightingSystem* GetLightingSystem() const;
     ShaderCompiler* GetShaderCompiler() const;
     ShaderEditor* GetShaderEditor() const;
 
@@ -77,6 +79,8 @@ private:
 
     std::list<RenderPassSharedPtr> m_RenderPasses;
     VertexBufferSchemasUniquePtr m_pVertexBufferSchemas;
+
+    LightingSystemUniquePtr m_pLightingSystem;
 };
 
 } // namespace WingsOfSteel
