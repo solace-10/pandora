@@ -16,9 +16,9 @@ public:
     {
     }
 
-    void SetAngle(float angle);
+    void SetAngle(float angleInDegrees);
     float GetAngle() const { return m_Angle; }
-    void SetPitch(float pitch);
+    void SetPitch(float pitchInDegrees);
     float GetPitch() const { return m_Pitch; }
     const glm::vec3& GetNormalizedDirection() const { return m_Direction; }
 

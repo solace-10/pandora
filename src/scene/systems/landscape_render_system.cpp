@@ -60,7 +60,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
     const float maxHeight = landscapeComponent.Height;
-    const glm::vec3 color = glm::vec3(0.3f, 0.5f, 0.3f); // Single green color for all vertices
+    const glm::vec3 color = glm::vec3(0.2f, 0.4f, 0.2f); // Single green color for all vertices
 
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
         x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));

@@ -66,7 +66,9 @@ private:
         float time;
         float windowWidth;
         float windowHeight;
-        float _unused[1];
+        float _padding1;
+        glm::vec4 directionalLightColor;
+        glm::vec4 directionalLightDirection;
     };
     GlobalUniforms m_GlobalUniforms;
 

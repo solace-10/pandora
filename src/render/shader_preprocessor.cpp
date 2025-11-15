@@ -11,7 +11,9 @@ struct GlobalUniforms
     cameraPosition: vec4f,
     time: f32,
     windowWidth: f32,
-    windowHeight: f32
+    windowHeight: f32,
+    directionalLightColor: vec4f,
+    directionalLightDirection: vec4f
 };
 )";
 
