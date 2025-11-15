@@ -5,15 +5,15 @@
 namespace WingsOfSteel
 {
 
-void DirectionalLightComponent::SetAngle(float angle)
+void DirectionalLightComponent::SetAngle(float angleInDegrees)
 {
-    m_Angle = angle;
+    m_Angle = angleInDegrees;
     CalculateNormalizedDirection();
 }
 
-void DirectionalLightComponent::SetPitch(float pitch)
+void DirectionalLightComponent::SetPitch(float pitchInDegrees)
 {
-    m_Pitch = pitch;
+    m_Pitch = pitchInDegrees;
     CalculateNormalizedDirection();
 }
 
@@ -21,15 +21,18 @@ void DirectionalLightComponent::CalculateNormalizedDirection()
 {
     // Convert angle and pitch to direction vector
     // Angle rotates around Y axis (horizontal), pitch rotates up/down
-    const float cosAngle = glm::cos(m_Angle);
-    const float sinAngle = glm::sin(m_Angle);
-    const float cosPitch = glm::cos(m_Pitch);
-    const float sinPitch = glm::sin(m_Pitch);
+    const float angleInRadians = glm::radians(m_Angle);
+    const float pitchInRadians = glm::radians(m_Pitch);
+    const float cosAngle = glm::cos(angleInRadians);
+    const float sinAngle = glm::sin(angleInRadians);
+    const float cosPitch = glm::cos(pitchInRadians);
+    const float sinPitch = glm::sin(pitchInRadians);
 
-    // Calculate direction vector
-    m_Direction.x = sinAngle * cosPitch;
-    m_Direction.y = -sinPitch; // Negative because directional light points down
-    m_Direction.z = cosAngle * cosPitch;
+    // Calculate direction vector pointing TO the light (opposite of ray direction)
+    // This is used in shaders as: NdotL = dot(normal, lightDirection)
+    m_Direction.x = -sinAngle * cosPitch;
+    m_Direction.y = sinPitch; // Positive for light coming from above
+    m_Direction.z = -cosAngle * cosPitch;
 
     // Normalize to ensure unit vector
     m_Direction = glm::normalize(m_Direction);

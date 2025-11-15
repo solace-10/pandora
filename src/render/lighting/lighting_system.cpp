@@ -8,7 +8,8 @@
 #include "render/rendersystem.hpp"
 #include "scene/components/ambient_light_component.hpp"
 #include "scene/components/directional_light_component.hpp"
-#include "scene/scene.hpp"
+#include "scene/scene.hpp"
+
 
 namespace WingsOfSteel
 {
@@ -68,16 +69,16 @@ void LightingSystem::DrawDebugUI()
                 directionalLightComponent.SetColor(color);
             }
 
-            float angleInDegrees = glm::degrees(m_DirectionalLight.Angle);
-            if (ImGui::SliderFloat("Angle", &angleInDegrees, 0.0f, 360.0f))
+            float angle = m_DirectionalLight.Angle;
+            if (ImGui::SliderFloat("Angle", &angle, 0.0f, 360.0f))
             {
-                directionalLightComponent.SetAngle(glm::radians(angleInDegrees));
+                directionalLightComponent.SetAngle(angle);
             }
 
-            float pitchInDegrees = glm::degrees(m_DirectionalLight.Pitch);
-            if (ImGui::SliderFloat("Pitch", &pitchInDegrees, 0.0f, 90.0f))
+            float pitch = m_DirectionalLight.Pitch;
+            if (ImGui::SliderFloat("Pitch", &pitch, 0.0f, 90.0f))
             {
-                directionalLightComponent.SetPitch(glm::radians(pitchInDegrees));
+                directionalLightComponent.SetPitch(pitch);
             }
         }
         else
@@ -101,7 +102,7 @@ void LightingSystem::DrawDebugGizmo()
         GetDebugRender()->Circle(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), Color::HotPink, static_cast<float>(i));
     }
     GetDebugRender()->Arrow(
-        m_DirectionalLight.Direction * -50.0f, m_DirectionalLight.Direction * -10.0f, Color(m_DirectionalLight.Color.r, m_DirectionalLight.Color.g, m_DirectionalLight.Color.b), 5.0f);
+        m_DirectionalLight.Direction * 50.0f, m_DirectionalLight.Direction * 10.0f, Color(m_DirectionalLight.Color.r, m_DirectionalLight.Color.g, m_DirectionalLight.Color.b), 5.0f);
 }
 
 } // namespace WingsOfSteel
