@@ -17,19 +17,24 @@ namespace WingsOfSteel
 {
 
 LandscapeRenderSystem::LandscapeRenderSystem()
-: m_VertexCount(0)
-, m_Initialized(false)
+    : m_VertexCount(0)
+    , m_Initialized(false)
 {
     // Load the landscape shader
     GetResourceSystem()->RequestResource("/shaders/landscape.wgsl", [this](ResourceSharedPtr pResource) {
         m_pShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
         CreateRenderPipeline();
+        HandleShaderInjection();
         m_Initialized = true;
     });
 }
 
 LandscapeRenderSystem::~LandscapeRenderSystem()
 {
+    if (GetResourceSystem() && m_ShaderInjectionSignalId.has_value())
+    {
+        GetResourceSystem()->GetShaderInjectedSignal().Disconnect(m_ShaderInjectionSignalId.value());
+    }
 }
 
 void LandscapeRenderSystem::Update(float delta)
@@ -38,7 +43,7 @@ void LandscapeRenderSystem::Update(float delta)
     {
         return;
     }
-    
+
     entt::registry& registry = GetActiveScene()->GetRegistry();
     auto view = registry.view<const LandscapeComponent>();
 
@@ -50,7 +55,6 @@ void LandscapeRenderSystem::Update(float delta)
 
         GenerateGeometry(landscapeComponent);
     });
-
 }
 
 void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscapeComponent)
@@ -202,16 +206,10 @@ void LandscapeRenderSystem::CreateRenderPipeline()
         .vertex = {
             .module = m_pShader->GetShaderModule(),
             .bufferCount = 1,
-            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3_N3)
-        },
-        .primitive = {
-            .topology = wgpu::PrimitiveTopology::TriangleList,
-            .cullMode = wgpu::CullMode::Back
-        },
+            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3_N3) },
+        .primitive = { .topology = wgpu::PrimitiveTopology::TriangleList, .cullMode = wgpu::CullMode::Back },
         .depthStencil = &depthState,
-        .multisample = {
-            .count = RenderSystem::MsaaSampleCount
-        },
+        .multisample = { .count = RenderSystem::MsaaSampleCount },
         .fragment = &fragmentState
     };
     m_RenderPipeline = GetRenderSystem()->GetDevice().CreateRenderPipeline(&descriptor);
@@ -231,6 +229,17 @@ void LandscapeRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
         renderPass.SetVertexBuffer(0, m_VertexBuffer);
         renderPass.SetIndexBuffer(m_IndexBuffer, wgpu::IndexFormat::Uint32);
         renderPass.DrawIndexed(m_IndexCount);
+    }
+}
+
+void LandscapeRenderSystem::HandleShaderInjection()
+{
+    if (!m_ShaderInjectionSignalId.has_value())
+    {
+        m_ShaderInjectionSignalId = GetResourceSystem()->GetShaderInjectedSignal().Connect(
+            [this](ResourceShader* pResourceShader) {
+                CreateRenderPipeline();
+            });
     }
 }
 

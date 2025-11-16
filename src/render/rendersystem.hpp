@@ -69,6 +69,7 @@ private:
         float _padding1;
         glm::vec4 directionalLightColor;
         glm::vec4 directionalLightDirection;
+        glm::vec4 ambientLightColor;
     };
     GlobalUniforms m_GlobalUniforms;
 

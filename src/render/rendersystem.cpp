@@ -230,7 +230,7 @@ void RenderSystem::CreateGlobalUniforms()
     m_GlobalUniforms.windowHeight = 0.0f;
     m_GlobalUniforms.directionalLightColor = glm::vec4(1.0f);
     m_GlobalUniforms.directionalLightDirection = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
-
+    m_GlobalUniforms.ambientLightColor = glm::vec4(1.0f);
 
     BufferDescriptor bufferDescriptor{
         .label = "Global uniforms buffer",
@@ -294,6 +294,9 @@ void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
     const DirectionalLight& directionalLight = GetLightingSystem()->GetDirectionalLight();
     m_GlobalUniforms.directionalLightColor = glm::vec4(directionalLight.Color, 1.0f); // Needs to be a vec4 for alignment. alpha set to 1.0 to ensure any multiplications in the shader are correct.
     m_GlobalUniforms.directionalLightDirection = glm::vec4(directionalLight.Direction, 0.0f); // Needs to be a vec4 for alignment. w set to 0.0 not to affect normalization.
+
+    const AmbientLight& ambientLight = GetLightingSystem()->GetAmbientLight();
+    m_GlobalUniforms.ambientLightColor = glm::vec4(ambientLight.Color, 1.0f);
 
     GetDevice().GetQueue().WriteBuffer(m_GlobalUniformsBuffer, 0, &m_GlobalUniforms, sizeof(GlobalUniforms));
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);

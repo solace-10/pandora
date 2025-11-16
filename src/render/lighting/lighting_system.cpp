@@ -31,9 +31,8 @@ void LightingSystem::Update()
     }
 
     entt::registry& registry = GetActiveScene()->GetRegistry();
-    auto view = registry.view<DirectionalLightComponent>();
-
-    view.each([this](const auto entityHandle, DirectionalLightComponent& directionalLightComponent) {
+    auto directionalLightView = registry.view<DirectionalLightComponent>();
+    directionalLightView.each([this](const auto entityHandle, DirectionalLightComponent& directionalLightComponent) {
         m_DirectionalLight.Color = directionalLightComponent.GetColor();
         m_DirectionalLight.Direction = directionalLightComponent.GetNormalizedDirection();
         m_DirectionalLight.Angle = directionalLightComponent.GetAngle();
@@ -42,6 +41,16 @@ void LightingSystem::Update()
         if (IsDebugUIVisible())
         {
             m_pDirectionalLightEntity = GetActiveScene()->GetEntity(entityHandle);
+        }
+    });
+
+    auto ambientLightView = registry.view<AmbientLightComponent>();
+    ambientLightView.each([this](const auto entityHandle, AmbientLightComponent& ambientLightComponent) {
+        m_AmbientLight.Color = ambientLightComponent.GetColor();
+
+        if (IsDebugUIVisible())
+        {
+            m_pAmbientLightEntity = GetActiveScene()->GetEntity(entityHandle);
         }
     });
 
@@ -58,13 +67,13 @@ void LightingSystem::DrawDebugUI()
     if (ImGui::Begin("Lighting", &m_ShowDebugUI))
     {
         ImGui::SeparatorText("Directional light");
-        EntitySharedPtr pEntity = m_pDirectionalLightEntity.lock();
-        if (pEntity)
+        EntitySharedPtr pDirectionalLightEntity = m_pDirectionalLightEntity.lock();
+        if (pDirectionalLightEntity)
         {
-            DirectionalLightComponent& directionalLightComponent = pEntity->GetComponent<DirectionalLightComponent>();
+            DirectionalLightComponent& directionalLightComponent = pDirectionalLightEntity->GetComponent<DirectionalLightComponent>();
 
             glm::vec3 color = directionalLightComponent.GetColor();
-            if (ImGui::ColorEdit3("Color", (float*)&color, ImGuiColorEditFlags_Float))
+            if (ImGui::ColorEdit3("DiffuseColor", (float*)&color, ImGuiColorEditFlags_Float))
             {
                 directionalLightComponent.SetColor(color);
             }
@@ -85,8 +94,29 @@ void LightingSystem::DrawDebugUI()
         {
             ImGui::TextUnformatted("Directional light not set.");
         }
+
+        ImGui::SeparatorText("Ambient light");
+        EntitySharedPtr pAmbientLightEntity = m_pAmbientLightEntity.lock();
+        if (pAmbientLightEntity)
+        {
+            AmbientLightComponent& ambientLightComponent = pAmbientLightEntity->GetComponent<AmbientLightComponent>();
+            glm::vec3 color = ambientLightComponent.GetColor();
+            if (ImGui::ColorEdit3("AmbientColor", (float*)&color, ImGuiColorEditFlags_Float))
+            {
+                ambientLightComponent.SetColor(color);
+            }
+        }
+        else
+        {
+            ImGui::TextUnformatted("Ambient light not set.");
+        }
     }
     ImGui::End();
+}
+
+const AmbientLight& LightingSystem::GetAmbientLight() const
+{
+    return m_AmbientLight;
 }
 
 const DirectionalLight& LightingSystem::GetDirectionalLight() const
