@@ -8,6 +8,11 @@
 namespace WingsOfSteel
 {
 
+struct AmbientLight
+{
+    glm::vec3 Color{ 1.0f, 1.0f, 1.0f };
+};
+
 struct DirectionalLight
 {
     float Angle{ 0.0f };
@@ -26,10 +31,14 @@ public:
 
     void Update();
 
+    const AmbientLight& GetAmbientLight() const;
     const DirectionalLight& GetDirectionalLight() const;
 
 private:
     void DrawDebugGizmo();
+
+    AmbientLight m_AmbientLight;
+    EntityWeakPtr m_pAmbientLightEntity;
 
     DirectionalLight m_DirectionalLight;
     EntityWeakPtr m_pDirectionalLightEntity;

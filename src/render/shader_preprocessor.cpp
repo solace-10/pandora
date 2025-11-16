@@ -13,7 +13,8 @@ struct GlobalUniforms
     windowWidth: f32,
     windowHeight: f32,
     directionalLightColor: vec4f,
-    directionalLightDirection: vec4f
+    directionalLightDirection: vec4f,
+    ambientLightColor: vec4f
 };
 )";
 
