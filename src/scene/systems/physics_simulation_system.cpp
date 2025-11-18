@@ -86,7 +86,7 @@ void PhysicsSimulationSystem::Update(float delta)
     m_pPhysicsVisualization->Update();
 
     entt::registry& registry = GetActiveScene()->GetRegistry();
-    
+
     auto rigidBodiesView = registry.view<const RigidBodyComponent, TransformComponent>();
     rigidBodiesView.each([](const auto entity, const RigidBodyComponent& rigidBodyComponent, TransformComponent& transformComponent) {
         transformComponent.transform = rigidBodyComponent.GetWorldTransform();
@@ -144,8 +144,8 @@ void PhysicsSimulationSystem::OnGhostComponentDestroyed(entt::registry& registry
 
 std::optional<PhysicsSimulationSystem::RaycastResult> PhysicsSimulationSystem::Raycast(const glm::vec3& from, const glm::vec3& to)
 {
-    btVector3 btFrom(from.x, from.y, from.z);
-    btVector3 btTo(to.x, to.y, to.z);
+    const btVector3 btFrom(from.x, from.y, from.z);
+    const btVector3 btTo(to.x, to.y, to.z);
 
     btCollisionWorld::ClosestRayResultCallback rayCallback(btFrom, btTo);
     m_pWorld->rayTest(btFrom, btTo, rayCallback);
@@ -154,28 +154,41 @@ std::optional<PhysicsSimulationSystem::RaycastResult> PhysicsSimulationSystem::R
     {
         RaycastResult result;
         result.position = glm::vec3(rayCallback.m_hitPointWorld.x(), rayCallback.m_hitPointWorld.y(), rayCallback.m_hitPointWorld.z());
-
-        // Find the entity associated with the hit collision object
-        const btCollisionObject* pCollisionObject = rayCallback.m_collisionObject;
-
-        // Try to cast to rigid body first
-        const btRigidBody* pRigidBody = btRigidBody::upcast(pCollisionObject);
-        if (pRigidBody)
-        {
-            result.pEntity = RigidBodyComponent::GetEntityFromRigidBody(pRigidBody);
-            return result;
-        }
-
-        // If not a rigid body, try ghost object
-        const btGhostObject* pGhostObject = btGhostObject::upcast(pCollisionObject);
-        if (pGhostObject)
-        {
-            result.pEntity = GhostComponent::GetEntityFromGhostObject(pGhostObject);
-            return result;
-        }
+        result.fraction = rayCallback.m_closestHitFraction;
+        result.pEntity = CollisionObjectToEntity(rayCallback.m_collisionObject);
+        return result;
     }
 
     return std::nullopt;
+}
+
+std::vector<PhysicsSimulationSystem::RaycastResult> PhysicsSimulationSystem::RaycastAll(const glm::vec3& from, const glm::vec3& to)
+{
+    std::vector<PhysicsSimulationSystem::RaycastResult> results;
+
+    const btVector3 btFrom(from.x, from.y, from.z);
+    const btVector3 btTo(to.x, to.y, to.z);
+
+    btCollisionWorld::AllHitsRayResultCallback rayCallback(btFrom, btTo);
+    m_pWorld->rayTest(btFrom, btTo, rayCallback);
+    
+    if (rayCallback.hasHit())
+    {
+        const int numHits = rayCallback.m_collisionObjects.size();
+        for (int i = 0; i < numHits; i++)
+        {
+            const btVector3& hitPointWorld(rayCallback.m_hitPointWorld[i]);
+            const float hitFraction(rayCallback.m_hitFractions[i]);
+
+            RaycastResult result;
+            result.position = glm::vec3(hitPointWorld.x(), hitPointWorld.y(), hitPointWorld.z());
+            result.fraction = hitFraction;
+            result.pEntity = CollisionObjectToEntity(rayCallback.m_collisionObjects[i]);
+            results.push_back(std::move(result));
+        }
+    }
+
+    return results;
 }
 
 void PhysicsSimulationSystem::SetCollisionBetween(EntitySharedPtr pEntity1, EntitySharedPtr pEntity2, bool enable)
@@ -201,6 +214,25 @@ void PhysicsSimulationSystem::SetCollisionBetween(EntitySharedPtr pEntity1, Enti
         pBulletRB1->setIgnoreCollisionCheck(pBulletRB2, !enable);
         pBulletRB2->setIgnoreCollisionCheck(pBulletRB1, !enable);
     }
+}
+
+EntitySharedPtr PhysicsSimulationSystem::CollisionObjectToEntity(const btCollisionObject* pCollisionObject)
+{
+    // Try to cast to rigid body first
+    const btRigidBody* pRigidBody = btRigidBody::upcast(pCollisionObject);
+    if (pRigidBody)
+    {
+        return RigidBodyComponent::GetEntityFromRigidBody(pRigidBody);
+    }
+
+    // If not a rigid body, try ghost object
+    const btGhostObject* pGhostObject = btGhostObject::upcast(pCollisionObject);
+    if (pGhostObject)
+    {
+        return GhostComponent::GetEntityFromGhostObject(pGhostObject);
+    }
+
+    return nullptr;
 }
 
 } // namespace WingsOfSteel

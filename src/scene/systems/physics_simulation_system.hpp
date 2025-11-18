@@ -11,6 +11,7 @@
 #include "physics/physics_visualization.hpp"
 
 class btCollisionDispatcher;
+class btCollisionObject;
 class btDefaultCollisionConfiguration;
 struct btDbvtBroadphase;
 class btSequentialImpulseConstraintSolver;
@@ -42,15 +43,19 @@ public:
     struct RaycastResult
     {
         EntitySharedPtr pEntity;
-        glm::vec3 position;
+        glm::vec3 position{0.0f};
+        float fraction{0.0f}; // Fraction along the raycast's path at which the raycast collided. 
     };
 
     std::optional<RaycastResult> Raycast(const glm::vec3& from, const glm::vec3& to);
-
+    std::vector<RaycastResult> RaycastAll(const glm::vec3& from, const glm::vec3& to);
+    
     // Enable or disable collision between two specific entities
     void SetCollisionBetween(EntitySharedPtr pEntity1, EntitySharedPtr pEntity2, bool enable);
 
 private:
+    EntitySharedPtr CollisionObjectToEntity(const btCollisionObject* pCollisionObject);
+    
     Scene* m_pScene{ nullptr };
     std::unique_ptr<btDefaultCollisionConfiguration> m_pCollisionConfiguration;
     std::unique_ptr<btCollisionDispatcher> m_pDispatcher;
