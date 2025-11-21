@@ -81,10 +81,10 @@ void Material::InitializeBindGroupLayout()
     // Add dynamic uniforms buffer if material has shader parameters
     if (!m_ParameterDefinitions.empty())
     {
-        // Create uniform buffer for dynamic parameters
+        // Create storage buffer for dynamic parameters (initial size, will grow as needed)
         wgpu::BufferDescriptor bufferDesc{
-            .label = "Dynamic Uniforms Buffer",
-            .usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst,
+            .label = "Dynamic Uniforms Storage Buffer",
+            .usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst,
             .size = sizeof(DynamicUniformsData)
         };
         m_DynamicUniformsBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDesc);
@@ -92,17 +92,17 @@ void Material::InitializeBindGroupLayout()
         // Next available binding after sampler (0) and textures (1-5)
         const uint32_t dynamicUniformsBinding = 6;
 
-        // Add layout entry for dynamic uniforms
+        // Add layout entry for dynamic uniforms storage buffer
         wgpu::BindGroupLayoutEntry dynamicUniformsLayoutEntry{
             .binding = dynamicUniformsBinding,
             .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
             .buffer{
-                .type = wgpu::BufferBindingType::Uniform,
+                .type = wgpu::BufferBindingType::ReadOnlyStorage,
                 .minBindingSize = sizeof(DynamicUniformsData) }
         };
         layoutEntries.push_back(dynamicUniformsLayoutEntry);
 
-        // Add bind group entry for dynamic uniforms
+        // Add bind group entry for dynamic uniforms storage buffer
         wgpu::BindGroupEntry dynamicUniformsEntry{
             .binding = dynamicUniformsBinding,
             .buffer = m_DynamicUniformsBuffer,
@@ -175,6 +175,77 @@ std::optional<uint32_t> Material::GetParameterOffset(const std::string& name) co
         }
     }
     return std::nullopt;
+}
+
+void Material::ResizeDynamicUniformsBuffer(size_t newCapacity)
+{
+    if (newCapacity <= m_DynamicUniformsBufferCapacity || !HasDynamicUniforms())
+    {
+        return;
+    }
+
+    m_DynamicUniformsBufferCapacity = newCapacity;
+
+    // Recreate buffer with new size
+    wgpu::BufferDescriptor bufferDesc{
+        .label = "Dynamic Uniforms Storage Buffer",
+        .usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst,
+        .size = newCapacity * sizeof(DynamicUniformsData)
+    };
+    m_DynamicUniformsBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDesc);
+
+    // Recreate bind group with new buffer (but keep existing layout)
+    const uint32_t dynamicUniformsBinding = 6;
+
+    std::vector<wgpu::BindGroupEntry> entries;
+
+    // Add sampler (binding 0)
+    wgpu::SamplerDescriptor samplerDesc{
+        .magFilter = wgpu::FilterMode::Linear,
+        .minFilter = wgpu::FilterMode::Linear,
+        .mipmapFilter = wgpu::MipmapFilterMode::Linear
+    };
+    wgpu::Sampler sampler = GetRenderSystem()->GetDevice().CreateSampler(&samplerDesc);
+    entries.push_back(wgpu::BindGroupEntry{
+        .binding = 0,
+        .sampler = sampler
+    });
+
+    // Add textures (bindings 1-5)
+    std::array<wgpu::TextureView, 5> textureViews{
+        GetBaseColorTexture() ? GetBaseColorTexture()->GetTextureView() : nullptr,
+        GetMetallicRoughnessTexture() ? GetMetallicRoughnessTexture()->GetTextureView() : nullptr,
+        GetNormalTexture() ? GetNormalTexture()->GetTextureView() : nullptr,
+        GetOcclusionTexture() ? GetOcclusionTexture()->GetTextureView() : nullptr,
+        GetEmissiveTexture() ? GetEmissiveTexture()->GetTextureView() : nullptr
+    };
+
+    for (size_t i = 0; i < textureViews.size(); i++)
+    {
+        if (textureViews[i] != nullptr)
+        {
+            entries.push_back(wgpu::BindGroupEntry{
+                .binding = static_cast<uint32_t>(i + 1),
+                .textureView = textureViews[i]
+            });
+        }
+    }
+
+    // Add dynamic uniforms buffer with new size (binding 6)
+    entries.push_back(wgpu::BindGroupEntry{
+        .binding = dynamicUniformsBinding,
+        .buffer = m_DynamicUniformsBuffer,
+        .size = newCapacity * sizeof(DynamicUniformsData)
+    });
+
+    // Create bind group with existing layout
+    wgpu::BindGroupDescriptor bindGroupDescriptor{
+        .layout = m_BindGroupLayout,
+        .entryCount = entries.size(),
+        .entries = entries.data()
+    };
+
+    m_BindGroup = GetRenderSystem()->GetDevice().CreateBindGroup(&bindGroupDescriptor);
 }
 
 } // namespace WingsOfSteel

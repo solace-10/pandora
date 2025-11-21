@@ -3,61 +3,66 @@
 namespace WingsOfSteel
 {
 
-DynamicUniformsData InstanceParameterBuffer::PackParameters(
+std::vector<DynamicUniformsData> InstanceParameterBuffer::PackParameters(
     const std::vector<ShaderParameterDefinition>& definitions,
     const std::vector<std::unordered_map<std::string, float>>& instanceParameters)
 {
-    DynamicUniformsData data;
+    std::vector<DynamicUniformsData> result;
 
-    // Initialize all parameters to default values first
-    for (const auto& def : definitions)
+    if (instanceParameters.empty())
     {
-        const size_t paramIndex = def.offset / 4; // Each vec4 can hold 4 floats
-        const size_t componentOffset = def.offset % 4;
-
-        if (paramIndex >= DynamicUniformsData::MaxParams)
-        {
-            continue; // Skip if we exceed max params
-        }
-
-        // Set default values
-        for (uint32_t i = 0; i < def.componentCount; i++)
-        {
-            const size_t finalParamIndex = (def.offset + i) / 4;
-            const size_t finalComponentOffset = (def.offset + i) % 4;
-
-            if (finalParamIndex < DynamicUniformsData::MaxParams)
-            {
-                data.params[finalParamIndex][finalComponentOffset] = def.defaultValue[i];
-            }
-        }
+        return result;
     }
 
-    // Override with instance-specific values
-    if (!instanceParameters.empty())
-    {
-        for (const auto& params : instanceParameters)
-        {
-            for (const auto& def : definitions)
-            {
-                auto it = params.find(def.name);
-                if (it != params.end())
-                {
-                    const size_t paramIndex = def.offset / 4;
-                    const size_t componentOffset = def.offset % 4;
+    result.resize(instanceParameters.size());
 
-                    if (paramIndex < DynamicUniformsData::MaxParams)
-                    {
-                        // For now, we only support float parameters
-                        // Vec2/Vec3/Vec4 would need to be set component by component
-                        data.params[paramIndex][componentOffset] = it->second;
-                    }
+    // Pack each instance's parameters separately
+    for (size_t instanceIdx = 0; instanceIdx < instanceParameters.size(); ++instanceIdx)
+    {
+        DynamicUniformsData& data = result[instanceIdx];
+        const auto& params = instanceParameters[instanceIdx];
+
+        // Initialize with default values
+        for (const auto& def : definitions)
+        {
+            const size_t paramIndex = def.offset / 4;
+            const size_t componentOffset = def.offset % 4;
+
+            if (paramIndex >= DynamicUniformsData::MaxParams)
+            {
+                continue;
+            }
+
+            for (uint32_t i = 0; i < def.componentCount; i++)
+            {
+                const size_t finalParamIndex = (def.offset + i) / 4;
+                const size_t finalComponentOffset = (def.offset + i) % 4;
+
+                if (finalParamIndex < DynamicUniformsData::MaxParams)
+                {
+                    data.params[finalParamIndex][finalComponentOffset] = def.defaultValue[i];
+                }
+            }
+        }
+
+        // Override with instance-specific values
+        for (const auto& def : definitions)
+        {
+            auto it = params.find(def.name);
+            if (it != params.end())
+            {
+                const size_t paramIndex = def.offset / 4;
+                const size_t componentOffset = def.offset % 4;
+
+                if (paramIndex < DynamicUniformsData::MaxParams)
+                {
+                    data.params[paramIndex][componentOffset] = it->second;
                 }
             }
         }
     }
 
-    return data;
+    return result;
 }
 
 } // namespace WingsOfSteel

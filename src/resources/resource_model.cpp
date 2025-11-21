@@ -127,8 +127,7 @@ void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vecto
         m_InstanceUniforms.buffer,
         0,
         instanceTransforms.data(),
-        m_InstanceCount * sizeof(glm::mat4)
-    );
+        m_InstanceCount * sizeof(glm::mat4));
     renderPass.SetBindGroup(2, m_InstanceUniforms.bindGroup);
 
     // Update dynamic uniforms for materials with shader parameters
@@ -138,13 +137,28 @@ void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vecto
         {
             if (material.HasDynamicUniforms())
             {
+                // Resize buffer if needed (grows but never shrinks to avoid thrashing)
+                if (m_InstanceCount > material.GetDynamicUniformsBufferCapacity())
+                {
+                    size_t newCapacity = material.GetDynamicUniformsBufferCapacity();
+                    while (newCapacity < m_InstanceCount)
+                    {
+                        newCapacity *= 2;
+                    }
+                    material.ResizeDynamicUniformsBuffer(newCapacity);
+                }
+
                 const auto& paramDefinitions = material.GetParameterDefinitions();
-                DynamicUniformsData dynamicData = InstanceParameterBuffer::PackParameters(paramDefinitions, instanceShaderParameters);
-                GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
-                    material.GetDynamicUniformsBuffer(),
-                    0,
-                    &dynamicData,
-                    sizeof(DynamicUniformsData));
+                std::vector<DynamicUniformsData> dynamicDataArray = InstanceParameterBuffer::PackParameters(paramDefinitions, instanceShaderParameters);
+
+                if (!dynamicDataArray.empty())
+                {
+                    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
+                        material.GetDynamicUniformsBuffer(),
+                        0,
+                        dynamicDataArray.data(),
+                        dynamicDataArray.size() * sizeof(DynamicUniformsData));
+                }
             }
         }
     }
@@ -189,10 +203,7 @@ void ResourceModel::RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& 
     const uint32_t meshId = node.GetMeshId().value();
     for (auto& primitiveRenderData : m_RenderData[meshId])
     {
-        if (primitiveRenderData.material.has_value())
-        {
-            renderPass.SetBindGroup(3, primitiveRenderData.material.value().GetBindGroup());
-        }
+        renderPass.SetBindGroup(3, m_Materials[primitiveRenderData.materialIndex].GetBindGroup());
 
         renderPass.SetPipeline(primitiveRenderData.pipeline);
         for (const auto& vertexData : primitiveRenderData.vertexData)
@@ -673,6 +684,11 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
     {
         return;
     }
+    else if (pPrimitive->material < 0 || static_cast<size_t>(pPrimitive->material) >= m_Materials.size())
+    {
+        Log::Error() << "Invalid material index " << pPrimitive->material;
+        return;
+    }
 
     PrimitiveRenderData renderData;
 
@@ -762,8 +778,10 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
         .format = GetWindow()->GetTextureFormat()
     };
 
-    renderData.material = m_Materials.at(pPrimitive->material);
-    colorTargetState.blend = &renderData.material.value().GetBlendState();
+    renderData.materialIndex = static_cast<uint32_t>(pPrimitive->material);
+
+    const Material& material = m_Materials[static_cast<size_t>(pPrimitive->material)];
+    colorTargetState.blend = &material.GetBlendState();
 
     wgpu::ShaderModule shaderModule = GetShaderForPrimitive(pPrimitive)->GetShaderModule();
 
@@ -775,7 +793,7 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
 
     wgpu::DepthStencilState depthState{
         .format = wgpu::TextureFormat::Depth32Float,
-        .depthWriteEnabled = (renderData.material->GetBlendMode() == BlendMode::None),
+        .depthWriteEnabled = (material.GetBlendMode() == BlendMode::None),
         .depthCompare = wgpu::CompareFunction::Less
     };
 
@@ -785,10 +803,7 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
         m_InstanceUniformsBindGroupLayout
     };
 
-    if (renderData.material.has_value())
-    {
-        bindGroupLayouts.push_back(renderData.material.value().GetBindGroupLayout());
-    }
+    bindGroupLayouts.push_back(material.GetBindGroupLayout());
 
     wgpu::PipelineLayoutDescriptor pipelineLayoutDescriptor{
         .label = GetName().c_str(),

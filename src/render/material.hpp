@@ -87,6 +87,8 @@ public:
     inline bool HasDynamicUniforms() const { return !m_ParameterDefinitions.empty(); }
     inline const wgpu::Buffer& GetDynamicUniformsBuffer() const { return m_DynamicUniformsBuffer; }
     inline const std::vector<ShaderParameterDefinition>& GetParameterDefinitions() const { return m_ParameterDefinitions; }
+    inline size_t GetDynamicUniformsBufferCapacity() const { return m_DynamicUniformsBufferCapacity; }
+    void ResizeDynamicUniformsBuffer(size_t newCapacity);
 
 private:
     void InitializeBindGroupLayout();
@@ -100,6 +102,7 @@ private:
     // Dynamic uniforms (included in group 3)
     std::vector<ShaderParameterDefinition> m_ParameterDefinitions;
     wgpu::Buffer m_DynamicUniformsBuffer;
+    size_t m_DynamicUniformsBufferCapacity{ 1 }; // Capacity in number of DynamicUniformsData elements
 };
 
 } // namespace WingsOfSteel
