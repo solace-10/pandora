@@ -146,7 +146,7 @@ private:
         };
         std::optional<IndexData> indexData;
 
-        std::optional<Material> material;
+        uint32_t materialIndex;
         wgpu::RenderPipeline pipeline;
         std::unique_ptr<std::string> pipelineLabel;
     };
@@ -154,7 +154,7 @@ private:
     using MeshRenderData = std::vector<PrimitiveRenderData>;
     std::vector<MeshRenderData> m_RenderData;
 
-    bool m_IsIndexed;
+    bool m_IsIndexed{ false };
 
     struct LocalUniformsData
     {

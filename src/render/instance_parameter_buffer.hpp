@@ -15,9 +15,8 @@ public:
     InstanceParameterBuffer() = default;
     ~InstanceParameterBuffer() = default;
 
-    // Pack instance shader parameters into DynamicUniformsData format
-    // Returns filled DynamicUniformsData ready for GPU upload
-    static DynamicUniformsData PackParameters(
+    // Pack parameters for all instances (returns vector with one entry per instance)
+    static std::vector<DynamicUniformsData> PackParameters(
         const std::vector<ShaderParameterDefinition>& definitions,
         const std::vector<std::unordered_map<std::string, float>>& instanceParameters);
 };
