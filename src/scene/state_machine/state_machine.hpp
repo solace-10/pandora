@@ -40,18 +40,14 @@ public:
 
     void SetInitialState(TStateEnum state)
     {
-        const size_t index = static_cast<size_t>(state);
-        if (m_States[index] != nullptr)
-        {
-            m_CurrentState = state;
-            m_pCurrentStatePtr = m_States[index].get();
-        }
+        m_InitialState = state;
     }
 
     // Returns true if the transition was successful, false if invalid.
     bool TransitionTo(TStateEnum state, TContext& context)
     {
-        const size_t currentIndex = static_cast<size_t>(m_CurrentState);
+        const TStateEnum currentState = context.currentState.value();
+        const size_t currentIndex = static_cast<size_t>(currentState);
         const size_t targetIndex = static_cast<size_t>(state);
 
         // Check if this is a valid transition
@@ -73,7 +69,7 @@ public:
                 return false;
             }
         }
-        else if (m_CurrentState != state)
+        else if (currentState != state)
         {
             // No transitions defined from current state, and we're not transitioning to self
             return false;
@@ -86,19 +82,20 @@ public:
         }
 
         // Exit current state
-        if (m_pCurrentStatePtr != nullptr)
+        State<TStateEnum, TContext>* pCurrentState = m_States[currentIndex].get();
+        if (pCurrentState != nullptr)
         {
-            m_pCurrentStatePtr->OnExit(context);
+            pCurrentState->OnExit(context);
         }
 
         // Transition to new state
-        m_CurrentState = state;
-        m_pCurrentStatePtr = m_States[targetIndex].get();
+        context.currentState = state;
+        State<TStateEnum, TContext>* pNewState = m_States[targetIndex].get();
 
         // Enter new state
-        if (m_pCurrentStatePtr != nullptr)
+        if (pNewState != nullptr)
         {
-            m_pCurrentStatePtr->OnEnter(context);
+            pNewState->OnEnter(context);
         }
 
         return true;
@@ -106,20 +103,43 @@ public:
 
     void Update(float delta, TContext& context)
     {
-        if (m_pCurrentStatePtr != nullptr)
+        if (!context.currentState)
         {
-            m_pCurrentStatePtr->Update(delta, context);
+            context.currentState = GetInitialState();
+            const size_t initialIndex = static_cast<size_t>(GetInitialState());
+            State<TStateEnum, TContext>* pInitialState = m_States[initialIndex].get();
+            if (pInitialState != nullptr)
+            {
+                pInitialState->OnEnter(context);
+            }
+        }
+        
+        const size_t currentIndex = static_cast<size_t>(context.currentState.value());
+        State<TStateEnum, TContext>* pCurrentState = m_States[currentIndex].get();
+
+        if (pCurrentState != nullptr)
+        {
+            std::optional<TStateEnum> requestedState = pCurrentState->Update(delta, context);
+            if (requestedState.has_value())
+            {
+                TransitionTo(requestedState.value(), context);
+            }
         }
     }
 
-    TStateEnum GetCurrentState() const
+    TStateEnum GetCurrentState(const TContext& context) const
     {
-        return m_CurrentState;
+        return context.currentState.value();
     }
 
-    const char* GetCurrentStateName() const
+    const char* GetCurrentStateName(const TContext& context) const
     {
-        return magic_enum::enum_name(m_CurrentState).data();
+        return magic_enum::enum_name(context.currentState.value()).data();
+    }
+
+    TStateEnum GetInitialState() const
+    {
+        return m_InitialState;
     }
 
 private:
@@ -127,8 +147,7 @@ private:
 
     std::array<StatePtr, StateCount> m_States;
     std::array<std::vector<TStateEnum>, StateCount> m_Transitions;
-    TStateEnum m_CurrentState{};
-    State<TStateEnum, TContext>* m_pCurrentStatePtr = nullptr;
+    TStateEnum m_InitialState{};
 };
 
 } // namespace WingsOfSteel
