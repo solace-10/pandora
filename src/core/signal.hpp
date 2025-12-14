@@ -13,6 +13,7 @@ namespace WingsOfSteel
 // will be passed to the given functions.
 
 using SignalId = uint32_t;
+constexpr SignalId InvalidSignalId = 0;
 
 template <typename... Args>
 class Signal
