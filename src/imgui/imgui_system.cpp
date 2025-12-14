@@ -8,6 +8,8 @@
 #include "imgui/fonts/exo2_semi_bold_data.hpp"
 #include "imgui/fonts/icons_font_awesome.hpp"
 #include "imgui/fonts/icons_font_awesome_data.hpp"
+#include "imgui/fonts/supplymono_regular_data.hpp"
+#include "imgui/fonts/supplymono_semibold_data.hpp"
 #include "imgui/fonts/ubuntu_mono_data.hpp"
 #include "pandora.hpp"
 #include "render/lighting/lighting_system.hpp"
@@ -137,7 +139,9 @@ void ImGuiSystem::RegisterFonts()
     RegisterFont(Font::EXO2_SEMIBOLD_22, pFontAtlas->AddFontFromMemoryCompressedTTF(sExo2SemiBold_compressed_data, sExo2SemiBold_compressed_size, defaultFontSize));
     RegisterFont(Font::EXO2_SEMIBOLD_32, pFontAtlas->AddFontFromMemoryCompressedTTF(sExo2SemiBold_compressed_data, sExo2SemiBold_compressed_size, 32.0f));
     RegisterFont(Font::UBUNTU_MONO_18, pFontAtlas->AddFontFromMemoryCompressedTTF(sUbuntuMono_compressed_data, sUbuntuMono_compressed_size, 18.0f));
-
+    RegisterFont(Font::SUPPLY_MONO_SEMIBOLD_18, pFontAtlas->AddFontFromMemoryCompressedTTF(sSupplyMonoSemiBold_compressed_data, sSupplyMonoSemiBold_compressed_size, 24.0f));
+    RegisterFont(Font::SUPPLY_MONO_REGULAR_22, pFontAtlas->AddFontFromMemoryCompressedTTF(sSupplyMonoRegular_compressed_data, sSupplyMonoRegular_compressed_size, 16.0f));
+    RegisterFont(Font::SUPPLY_MONO_REGULAR_32, pFontAtlas->AddFontFromMemoryCompressedTTF(sSupplyMonoRegular_compressed_data, sSupplyMonoRegular_compressed_size, 32.0f));
     pFontAtlas->Build();
 }
 

@@ -18,6 +18,9 @@ enum class Font
     EXO2_SEMIBOLD_22,
     EXO2_SEMIBOLD_32,
     UBUNTU_MONO_18,
+    SUPPLY_MONO_SEMIBOLD_18,
+    SUPPLY_MONO_REGULAR_22,
+    SUPPLY_MONO_REGULAR_32
 };
 
 // The ImGuiSystem handles various implementation details for ImGui, handling
