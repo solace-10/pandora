@@ -25,8 +25,12 @@ set(SOURCE_FILES_IMGUI
 add_library(pandora STATIC ${SOURCE_FILES} ${SOURCE_FILES_IMGUI})
 include("cmake/shared/TargetPlatforms.cmake")
 
-target_include_directories(pandora PUBLIC 
+target_include_directories(pandora PUBLIC
     src/
+)
+
+# Third-party includes marked as SYSTEM to suppress warnings
+target_include_directories(pandora SYSTEM PUBLIC
     ${IMGUI_SOURCE_DIR}
     ${IMGUI_SOURCE_DIR}/backends/
     ext/imgui_markdown/
@@ -36,9 +40,9 @@ target_include_directories(pandora PUBLIC
     ext/tinygltf/
 )
 
-target_include_directories(pandora PRIVATE
+target_include_directories(pandora SYSTEM PRIVATE
     ext/debug-draw/
-    ext/FastNoise2/include/
+    ext/FastNoiseLite/Cpp/
     ext/freetype/include/
 )
 
@@ -56,7 +60,6 @@ target_compile_definitions(pandora PUBLIC
 )
 
 target_link_libraries(pandora PUBLIC 
-    FastNoise
     freetype
     glm::glm
     magic_enum::magic_enum 
@@ -72,12 +75,13 @@ if(TARGET_PLATFORM_WINDOWS)
 endif()
 
 if (TARGET_PLATFORM_NATIVE)
-    target_include_directories(pandora PUBLIC ext/bullet3/src)
+    target_include_directories(pandora SYSTEM PUBLIC ext/bullet3/src)
     target_link_libraries(pandora PUBLIC webgpu_cpp webgpu_dawn glfw webgpu_glfw)
     target_link_libraries(pandora PUBLIC Bullet3Common BulletDynamics BulletCollision LinearMath)
 elseif(TARGET_PLATFORM_WEB)
     target_compile_options(pandora PUBLIC 
         "-O0"
+        "--use-port=bullet"
     )
     target_compile_definitions(pandora PRIVATE 
         "VFS_WEB_HOST=\"http://127.0.0.1:8000\""

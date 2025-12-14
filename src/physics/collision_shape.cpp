@@ -37,7 +37,7 @@ CollisionShapeBox::CollisionShapeBox(float width, float height, float depth)
 
 CollisionShapeCompound::CollisionShapeCompound()
 {
-    m_pShape = std::make_unique<btCompoundShape>(true, 4);
+    m_pShape = std::make_unique<btCompoundShape>(true);
     m_pShape->setUserPointer(this);
     m_ChildShapes.reserve(4);
 }
@@ -124,7 +124,9 @@ CollisionShapeSphere::CollisionShapeSphere(float radius)
 CollisionShapeConvexHull::CollisionShapeConvexHull(const ConvexHullVertices& vertices)
 {
     auto pConvexHullShape = std::make_unique<btConvexHullShape>(reinterpret_cast<const btScalar*>(vertices.data()), static_cast<int>(vertices.size()), static_cast<int>(sizeof(glm::vec3)));
+    #if !defined(TARGET_PLATFORM_WEB)
     pConvexHullShape->optimizeConvexHull();
+#endif
     pConvexHullShape->initializePolyhedralFeatures();
     pConvexHullShape->setUserPointer(this);
     m_pShape = std::move(pConvexHullShape);
