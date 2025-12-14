@@ -43,6 +43,12 @@ public:
         return m_pScene->m_Registry.get<T>(m_EntityHandle);
     }
 
+    template <typename T>
+    const T& GetComponent() const
+    {
+        return m_pScene->m_Registry.get<T>(m_EntityHandle);
+    }
+    
     EntityWeakPtr GetParent() { return m_pParentEntity; }
     void SetParent(EntityWeakPtr pParent) { m_pParentEntity = pParent; }
 
