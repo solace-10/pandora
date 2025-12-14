@@ -1,8 +1,7 @@
 #include "scene/systems/landscape_system.hpp"
 
-#include <FastNoise/FastNoise.h>
+#include <FastNoiseLite.h>
 
-#include "FastNoise/Generators/Fractal.h"
 #include "imgui.h"
 #include "imgui/imgui.hpp"
 #include "resources/resource_texture_2d.hpp"
@@ -41,13 +40,20 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
         landscapeComponent.Heightmap.resize(heightmapSize);
     }
 
-    auto noiseSimplex = FastNoise::New<FastNoise::Simplex>();
-    auto noiseFractal = FastNoise::New<FastNoise::FractalFBm>();
+    FastNoiseLite noise;
+    noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+    noise.SetFractalOctaves(landscapeComponent.Octaves);
+    noise.SetFrequency(landscapeComponent.Frequency);
+    noise.SetSeed(landscapeComponent.Seed);
 
-    noiseFractal->SetSource(noiseSimplex);
-    noiseFractal->SetOctaveCount(landscapeComponent.Octaves);
-
-    noiseFractal->GenUniformGrid2D(landscapeComponent.Heightmap.data(), 0, 0, landscapeComponent.Width, landscapeComponent.Length, landscapeComponent.Frequency, landscapeComponent.Seed);
+    for (int y = 0; y < landscapeComponent.Length; y++)
+    {
+        for (int x = 0; x < landscapeComponent.Width; x++)
+        {
+            landscapeComponent.Heightmap[y * landscapeComponent.Width + x] = noise.GetNoise(static_cast<float>(x), static_cast<float>(y));
+        }
+    }
 
     for (float& height : landscapeComponent.Heightmap)
     {
@@ -101,7 +107,7 @@ void LandscapeSystem::DrawDebugUI()
     {
         landscapeComponent.Seed = static_cast<uint32_t>(seed);
     }
-    
+
     int landscapeSize = static_cast<int>(landscapeComponent.Width);
     if (ImGui::DragInt("Size", &landscapeSize, 1.0f, 32, 1024))
     {
@@ -119,7 +125,7 @@ void LandscapeSystem::DrawDebugUI()
     }
 
     ImGui::DragFloat("Frequency", &landscapeComponent.Frequency, 0.0001f, 0.0f, 0.03f, "%.4f");
-    
+
     if (ImGui::Button("Generate"))
     {
         GenerateInternal(landscapeComponent);
@@ -135,7 +141,7 @@ void LandscapeSystem::DrawDebugUI()
         ImGui::Image(landscapeComponent.DebugHeightmapTexture->GetTextureView(), ImVec2(512, 512));
     }
     ImGui::EndGroup();
-    
+
     ImGui::End();
 }
 

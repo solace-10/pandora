@@ -121,10 +121,25 @@ void VFSWeb::FileRead(const std::string& path, FileReadCallback onFileReadComple
     m_Queue.push_back(queuedFile);
 }
 
-bool VFSWeb::FileWrite(const std::string& path, const std::vector<uint8_t>& bytes) override
+bool VFSWeb::FileWrite(const std::string& path, const std::vector<uint8_t>& bytes)
 {
     Log::Error() << "VFSWeb::FileWrite: Unsupported operation.";
     return false;
+}
+
+bool VFSWeb::Exists(const std::string& path) const
+{
+    if (!m_pManifest || !m_pManifest->IsValid())
+    {
+        return false;
+    }
+    return m_pManifest->GetEntry(path) != nullptr;
+}
+
+const std::vector<std::string> VFSWeb::List(const std::string& path) const
+{
+    Log::Warning() << "VFSWeb::List: Not implemented.";
+    return std::vector<std::string>();
 }
 
 } // namespace WingsOfSteel::Private
