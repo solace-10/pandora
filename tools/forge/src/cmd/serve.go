@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+
+	"wings_of_steel/forge/server"
 )
 
 var servePort int
-var serveDir string
 
 var ServeCmd = &cobra.Command{
 	Use:   "serve",
@@ -15,16 +17,24 @@ var ServeCmd = &cobra.Command{
 	Long: `Start a local HTTP server to serve game assets for development.
 
 The server includes CORS headers for local development and serves
-files from the game/bin directory by default.`,
+files from game/bin/ on the specified port (default 8080).
+
+The game's web build expects assets at http://127.0.0.1:8080/`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Starting server on port %d...\n", servePort)
-		fmt.Printf("Serving directory: %s\n", serveDir)
-		// TODO: Implement HTTP server
-		fmt.Println("TODO: Start HTTP server with CORS headers")
+		gameBinDir, err := server.FindGameBinDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		srv := server.New(gameBinDir, servePort)
+		if err := srv.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
-	ServeCmd.Flags().IntVarP(&servePort, "port", "p", 8000, "Port to serve on")
-	ServeCmd.Flags().StringVarP(&serveDir, "dir", "d", "game/bin", "Directory to serve")
+	ServeCmd.Flags().IntVarP(&servePort, "port", "p", 8080, "Port to serve on")
 }
