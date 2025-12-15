@@ -1,0 +1,36 @@
+package main
+
+import (
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"wings_of_steel/forge/cmd"
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "forge",
+	Short: "Forge - Web asset pipeline tool for Pandora",
+	Long: `Forge is a command-line tool for managing Pandora game assets for web deployments.
+
+It provides commands for:
+  - Generating asset manifests
+  - Uploading assets to Cloudflare R2
+  - Serving assets locally for development
+  - Injecting manifests into game.html
+  - Packaging everything for deployment`,
+}
+
+func init() {
+	rootCmd.AddCommand(cmd.ManifestCmd)
+	rootCmd.AddCommand(cmd.UploadCmd)
+	rootCmd.AddCommand(cmd.ServeCmd)
+	rootCmd.AddCommand(cmd.InjectCmd)
+	rootCmd.AddCommand(cmd.PackageCmd)
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
