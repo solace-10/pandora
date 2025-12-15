@@ -37,7 +37,7 @@ func NewUploader(manifestPath, assetsDir string) *Uploader {
 	}
 }
 
-func (u *Uploader) Upload() error {
+func (u *Uploader) Upload(force bool) error {
 	// Read manifest
 	manifestData, err := os.ReadFile(u.manifestPath)
 	if err != nil {
@@ -49,17 +49,62 @@ func (u *Uploader) Upload() error {
 		return fmt.Errorf("failed to parse manifest: %w", err)
 	}
 
-	// Calculate total size for progress
-	var totalSize int64
-	for _, entry := range entries {
-		totalSize += entry.Size
+	var toUpload []ManifestEntry
+	var uploadSize int64
+	var skippedCount int
+
+	if force {
+		// Force mode: upload everything
+		fmt.Printf("Force mode: uploading all %d files\n\n", len(entries))
+		toUpload = entries
+		for _, entry := range entries {
+			uploadSize += entry.Size
+		}
+	} else {
+		// Check which files need uploading
+		fmt.Printf("Checking %d files...\n", len(entries))
+
+		checkBar := progressbar.NewOptions(
+			len(entries),
+			progressbar.OptionSetDescription("Checking"),
+			progressbar.OptionSetWidth(40),
+			progressbar.OptionShowCount(),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "=",
+				SaucerHead:    ">",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}),
+		)
+
+		for _, entry := range entries {
+			exists, err := u.fileExists(entry.Hash)
+			if err != nil {
+				fmt.Printf("\nWarning: failed to check %s: %v\n", entry.Path, err)
+				// Assume it needs uploading if check fails
+				toUpload = append(toUpload, entry)
+				uploadSize += entry.Size
+			} else if !exists {
+				toUpload = append(toUpload, entry)
+				uploadSize += entry.Size
+			}
+			checkBar.Add(1)
+		}
+
+		skippedCount = len(entries) - len(toUpload)
+		fmt.Printf("\n\n%d files already exist, %d need uploading (%.2f MB)\n\n",
+			skippedCount, len(toUpload), float64(uploadSize)/(1024*1024))
+
+		if len(toUpload) == 0 {
+			fmt.Println("Nothing to upload.")
+			return nil
+		}
 	}
 
-	fmt.Printf("Uploading %d files (%.2f MB total)\n\n", len(entries), float64(totalSize)/(1024*1024))
-
-	// Create progress bar
+	// Create progress bar for uploads
 	bar := progressbar.NewOptions64(
-		totalSize,
+		uploadSize,
 		progressbar.OptionSetDescription("Uploading"),
 		progressbar.OptionSetWidth(40),
 		progressbar.OptionShowBytes(true),
@@ -77,7 +122,7 @@ func (u *Uploader) Upload() error {
 	var uploadedCount int
 	var failedCount int
 
-	for _, entry := range entries {
+	for _, entry := range toUpload {
 		filePath := filepath.Join(u.assetsDir, filepath.FromSlash(entry.Path))
 
 		err := u.uploadFile(filePath, entry.Hash)
@@ -91,13 +136,36 @@ func (u *Uploader) Upload() error {
 		bar.Add64(entry.Size)
 	}
 
-	fmt.Printf("\n\nUpload complete: %d succeeded, %d failed\n", uploadedCount, failedCount)
+	fmt.Printf("\n\nUpload complete: %d uploaded, %d failed, %d skipped\n",
+		uploadedCount, failedCount, skippedCount)
 
 	if failedCount > 0 {
 		return fmt.Errorf("%d files failed to upload", failedCount)
 	}
 
 	return nil
+}
+
+func (u *Uploader) fileExists(hash string) (bool, error) {
+	url := fmt.Sprintf("%s/%s", WorkerURL, hash)
+	req, err := http.NewRequest(http.MethodHead, url, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := u.client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 {
+		return true, nil
+	} else if resp.StatusCode == 404 {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 }
 
 func (u *Uploader) uploadFile(filePath, hash string) error {

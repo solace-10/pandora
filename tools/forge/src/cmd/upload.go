@@ -9,6 +9,8 @@ import (
 	"wings_of_steel/forge/upload"
 )
 
+var uploadForce bool
+
 var UploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "Upload assets to Cloudflare R2",
@@ -16,6 +18,9 @@ var UploadCmd = &cobra.Command{
 
 Reads the manifest from pandora/tools/forge/bin/cache/manifest.json
 and uploads each file to the Cloudflare Worker endpoint.
+
+By default, checks if files already exist and skips them.
+Use --force to upload all files regardless.
 
 Run 'forge manifest' first to generate the manifest.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -36,9 +41,13 @@ Run 'forge manifest' first to generate the manifest.`,
 		fmt.Printf("Assets:   %s\n\n", assetsDir)
 
 		uploader := upload.NewUploader(manifestPath, assetsDir)
-		if err := uploader.Upload(); err != nil {
+		if err := uploader.Upload(uploadForce); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	},
+}
+
+func init() {
+	UploadCmd.Flags().BoolVarP(&uploadForce, "force", "f", false, "Upload all files, skip existence check")
 }
