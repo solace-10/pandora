@@ -46,11 +46,25 @@ export default class extends WorkerEntrypoint<Env> {
           headers,
         });
       }
+      case "HEAD": {
+        const object = await this.env.PANDORA_WEB_BUCKET.head(key);
+
+        if (object === null) {
+          return new Response(null, { status: 404 });
+        }
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set("etag", object.httpEtag);
+        headers.set("content-length", object.size.toString());
+
+        return new Response(null, { status: 200, headers });
+      }
       default:
         return new Response("Method Not Allowed", {
           status: 405,
           headers: {
-            Allow: "PUT, GET",
+            Allow: "PUT, GET, HEAD",
           },
         });
     }
