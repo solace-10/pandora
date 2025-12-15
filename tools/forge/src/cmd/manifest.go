@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
-)
 
-var manifestOutput string
+	"wings_of_steel/forge/manifest"
+)
 
 var ManifestCmd = &cobra.Command{
 	Use:   "manifest",
@@ -14,15 +16,34 @@ var ManifestCmd = &cobra.Command{
 	Long: `Generate a manifest.json file from the game assets.
 
 The manifest contains the path, XXHash3-64 hash, and size of each asset file.
-This manifest is used by the web build to download and verify assets.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Generating manifest...")
-		fmt.Printf("Output: %s\n", manifestOutput)
-		// TODO: Implement manifest generation
-		fmt.Println("TODO: Walk game/bin/data/core/, compute hashes, write JSON")
-	},
-}
+This manifest is used by the web build to download and verify assets.
 
-func init() {
-	ManifestCmd.Flags().StringVarP(&manifestOutput, "output", "o", "game/bin/data/core/manifest.json", "Output path for manifest file")
+Source: game/bin/data/core/
+Output: pandora/tools/forge/bin/cache/manifest.json`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Get the executable's directory to find project root
+		exePath, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting executable path: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Navigate from pandora/tools/forge/src/ to project root
+		forgeDir := filepath.Dir(exePath)
+		projectRoot := filepath.Join(forgeDir, "..", "..", "..", "..")
+		projectRoot, _ = filepath.Abs(projectRoot)
+
+		sourceDir := filepath.Join(projectRoot, "game", "bin", "data", "core")
+		outputDir := filepath.Join(projectRoot, "pandora", "tools", "forge", "bin", "cache")
+
+		fmt.Printf("Generating manifest...\n")
+		fmt.Printf("Source: %s\n", sourceDir)
+		fmt.Printf("Output: %s\n\n", outputDir)
+
+		gen := manifest.NewGenerator(sourceDir, outputDir)
+		if err := gen.Generate(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
 }
