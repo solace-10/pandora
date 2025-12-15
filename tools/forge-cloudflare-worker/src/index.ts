@@ -1,0 +1,58 @@
+/**
+ * Welcome to Cloudflare Workers! This is your first worker.
+ *
+ * - Run `npm run dev` in your terminal to start a development server
+ * - Open a browser tab at http://localhost:8787/ to see your worker in action
+ * - Run `npm run deploy` to publish your worker
+ *
+ * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
+ * `Env` object can be regenerated with `npm run cf-typegen`.
+ *
+ * Learn more at https://developers.cloudflare.com/workers/
+ */
+
+import { WorkerEntrypoint } from "cloudflare:workers";
+
+export default class extends WorkerEntrypoint<Env> {
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    const key = url.pathname.slice(1);
+
+    switch (request.method) {
+      case "PUT": {
+        await this.env.PANDORA_WEB_BUCKET.put(key, request.body, {
+          onlyIf: request.headers,
+          httpMetadata: request.headers,
+        });
+        return new Response(`OK`);
+      }
+      case "GET": {
+        const object = await this.env.PANDORA_WEB_BUCKET.get(key, {
+          onlyIf: request.headers,
+          range: request.headers,
+        });
+
+        if (object === null) {
+          return new Response("Object Not Found", { status: 404 });
+        }
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set("etag", object.httpEtag);
+
+        // When no body is present, preconditions have failed
+        return new Response("body" in object ? object.body : undefined, {
+          status: "body" in object ? 200 : 412,
+          headers,
+        });
+      }
+      default:
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: {
+            Allow: "PUT, GET",
+          },
+        });
+    }
+  }
+};
