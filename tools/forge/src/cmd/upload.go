@@ -2,33 +2,43 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
-)
 
-var uploadForce bool
+	"wings_of_steel/forge/upload"
+)
 
 var UploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "Upload assets to Cloudflare R2",
-	Long: `Upload game assets to a Cloudflare R2 bucket.
+	Long: `Upload game assets to Cloudflare R2 via the Forge worker.
 
-Required environment variables:
-  R2_ACCESS_KEY_ID     - R2 API token access key
-  R2_SECRET_ACCESS_KEY - R2 API token secret
-  R2_ACCOUNT_ID        - Cloudflare account ID
-  R2_BUCKET            - R2 bucket name
+Reads the manifest from pandora/tools/forge/bin/cache/manifest.json
+and uploads each file to the Cloudflare Worker endpoint.
 
-By default, only changed files are uploaded (based on hash comparison).
-Use --force to upload all files regardless of changes.`,
+Run 'forge manifest' first to generate the manifest.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Uploading to R2...")
-		fmt.Printf("Force upload: %v\n", uploadForce)
-		// TODO: Implement R2 upload
-		fmt.Println("TODO: Connect to R2, upload files from game/bin/data/core/")
-	},
-}
+		manifestPath, assetsDir, err := upload.FindPaths()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 
-func init() {
-	UploadCmd.Flags().BoolVarP(&uploadForce, "force", "f", false, "Upload all files regardless of changes")
+		// Check manifest exists
+		if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Error: manifest not found at %s\n", manifestPath)
+			fmt.Fprintf(os.Stderr, "Run 'forge manifest' first to generate it.\n")
+			os.Exit(1)
+		}
+
+		fmt.Printf("Manifest: %s\n", manifestPath)
+		fmt.Printf("Assets:   %s\n\n", assetsDir)
+
+		uploader := upload.NewUploader(manifestPath, assetsDir)
+		if err := uploader.Upload(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
 }
