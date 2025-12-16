@@ -222,7 +222,7 @@ func FindPaths() (manifestPath, assetsDir string, err error) {
 		return "", "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	manifestPath = filepath.Join(projectRoot, "pandora", "tools", "forge", "bin", "cache", "manifest.json")
+	manifestPath = filepath.Join(projectRoot, "game", "bin", "manifest.json")
 	assetsDir = filepath.Join(projectRoot, "game", "bin", "data", "core")
 
 	return manifestPath, assetsDir, nil

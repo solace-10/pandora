@@ -19,7 +19,7 @@ The manifest contains the path, XXHash3-64 hash, and size of each asset file.
 This manifest is used by the web build to download and verify assets.
 
 Source: game/bin/data/core/
-Output: pandora/tools/forge/bin/cache/manifest.json`,
+Output: game/bin/manifest.json`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get the executable's directory to find project root
 		exePath, err := os.Executable()
@@ -34,7 +34,7 @@ Output: pandora/tools/forge/bin/cache/manifest.json`,
 		projectRoot, _ = filepath.Abs(projectRoot)
 
 		sourceDir := filepath.Join(projectRoot, "game", "bin", "data", "core")
-		outputDir := filepath.Join(projectRoot, "pandora", "tools", "forge", "bin", "cache")
+		outputDir := filepath.Join(projectRoot, "game", "bin")
 
 		fmt.Printf("Generating manifest...\n")
 		fmt.Printf("Source: %s\n", sourceDir)

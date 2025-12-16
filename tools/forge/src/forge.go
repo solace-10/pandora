@@ -17,7 +17,6 @@ It provides commands for:
   - Generating asset manifests
   - Uploading assets to Cloudflare R2
   - Serving assets locally for development
-  - Injecting manifests into game.html
   - Packaging everything for deployment`,
 }
 
@@ -25,7 +24,6 @@ func init() {
 	rootCmd.AddCommand(cmd.ManifestCmd)
 	rootCmd.AddCommand(cmd.UploadCmd)
 	rootCmd.AddCommand(cmd.ServeCmd)
-	rootCmd.AddCommand(cmd.InjectCmd)
 	rootCmd.AddCommand(cmd.PackageCmd)
 }
 
