@@ -13,11 +13,32 @@
 
 import { WorkerEntrypoint } from "cloudflare:workers";
 
+// Check requests for a pre-shared secret
+const hasValidHeader = (request, env) => {
+  return request.headers.get("X-Custom-Auth-Key") === env.FORGE_AUTH_KEY_SECRET;
+};
+
+function authorizeRequest(request, env, key) {
+  switch (request.method) {
+    case "PUT":
+      return hasValidHeader(request, env);
+    case "HEAD":
+    case "GET":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request) {
     const url = new URL(request.url);
     const key = url.pathname.slice(1);
 
+    if (!authorizeRequest(request, this.env, key)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+    
     switch (request.method) {
       case "PUT": {
         await this.env.PANDORA_WEB_BUCKET.put(key, request.body, {
@@ -59,7 +80,7 @@ export default class extends WorkerEntrypoint<Env> {
         headers.set("content-length", object.size.toString());
 
         return new Response(null, { status: 200, headers });
-      }
+      }      
       default:
         return new Response("Method Not Allowed", {
           status: 405,

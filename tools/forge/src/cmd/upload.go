@@ -40,7 +40,12 @@ Run 'forge manifest' first to generate the manifest.`,
 		fmt.Printf("Manifest: %s\n", manifestPath)
 		fmt.Printf("Assets:   %s\n\n", assetsDir)
 
-		uploader := upload.NewUploader(manifestPath, assetsDir)
+		uploader, err := upload.NewUploader(manifestPath, assetsDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
 		if err := uploader.Upload(uploadForce); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
