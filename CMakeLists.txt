@@ -88,7 +88,7 @@ elseif(TARGET_PLATFORM_WEB)
     )
     target_link_options(pandora PUBLIC 
         "-sDEFAULT_TO_CXX"
-        "-sUSE_BULLET=1"
+        "--use-port=bullet"
         "-sUSE_WEBGPU=1" 
         "-sUSE_GLFW=3" 
         "-sFETCH" 
@@ -98,5 +98,7 @@ elseif(TARGET_PLATFORM_WEB)
         "-sSTACK_SIZE=5MB"
         "-sDISABLE_EXCEPTION_CATCHING"
         #"-fsanitize=address"
+
+        "--shell-file=${CMAKE_CURRENT_LIST_DIR}/src/emscripten/shell_minimal.html"
     )
 endif()
