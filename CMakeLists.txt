@@ -79,6 +79,23 @@ if (TARGET_PLATFORM_NATIVE)
     target_link_libraries(pandora PUBLIC webgpu_cpp webgpu_dawn glfw webgpu_glfw)
     target_link_libraries(pandora PUBLIC Bullet3Common BulletDynamics BulletCollision LinearMath)
 elseif(TARGET_PLATFORM_WEB)
+    # Generate manifest.json before building for web.
+    # This is called every time, with Forge regenerating the manifest as necessary.
+    add_custom_target(forge_generate_manifest
+        COMMAND ${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe manifest
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        COMMENT "Generating manifest.json for web build..."
+    )
+
+    add_custom_target(forge_upload
+        COMMAND ${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe upload
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        COMMENT "Uploading files for web build..."
+    )
+    
+    add_dependencies(pandora forge_generate_manifest forge_upload)
+    add_dependencies(forge_upload forge_generate_manifest)
+
     target_compile_options(pandora PUBLIC 
         "-O0"
         "--use-port=bullet"
@@ -100,5 +117,6 @@ elseif(TARGET_PLATFORM_WEB)
         #"-fsanitize=address"
 
         "--shell-file=${CMAKE_CURRENT_LIST_DIR}/src/emscripten/shell_minimal.html"
+        "--embed-file=${CMAKE_CURRENT_LIST_DIR}/../game/bin/manifest.json@/"
     )
 endif()

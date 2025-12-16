@@ -16,7 +16,7 @@ var UploadCmd = &cobra.Command{
 	Short: "Upload assets to Cloudflare R2",
 	Long: `Upload game assets to Cloudflare R2 via the Forge worker.
 
-Reads the manifest from pandora/tools/forge/bin/cache/manifest.json
+Reads the manifest from game/bin/manifest.json
 and uploads each file to the Cloudflare Worker endpoint.
 
 By default, checks if files already exist and skips them.
