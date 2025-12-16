@@ -24,17 +24,24 @@ type ManifestEntry struct {
 type Uploader struct {
 	manifestPath string
 	assetsDir    string
+	authKey      string
 	client       *http.Client
 }
 
-func NewUploader(manifestPath, assetsDir string) *Uploader {
+func NewUploader(manifestPath, assetsDir string) (*Uploader, error) {
+	authKey := os.Getenv("FORGE_AUTH_KEY_SECRET")
+	if authKey == "" {
+		return nil, fmt.Errorf("FORGE_AUTH_KEY_SECRET environment variable is not set")
+	}
+
 	return &Uploader{
 		manifestPath: manifestPath,
 		assetsDir:    assetsDir,
+		authKey:      authKey,
 		client: &http.Client{
 			Timeout: 5 * time.Minute,
 		},
-	}
+	}, nil
 }
 
 func (u *Uploader) Upload(force bool) error {
@@ -183,6 +190,7 @@ func (u *Uploader) uploadFile(filePath, hash string) error {
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("X-Custom-Auth-Key", u.authKey)
 
 	// Send request
 	resp, err := u.client.Do(req)
