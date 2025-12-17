@@ -52,7 +52,7 @@ void VFSWeb::Update()
     {
     }
 
-    if (!m_Queue.empty() && !m_InProgress.has_value() && m_pManifest->IsValid())
+    if (!m_Queue.empty() && !m_InProgress.has_value())
     {
         QueuedFile& queuedFile = m_Queue.front();
         m_InProgress = queuedFile;
@@ -104,7 +104,6 @@ void VFSWeb::Update()
                 VFSWeb* pVFS = reinterpret_cast<VFSWeb*>(pFetch->userData);
                 assert(pVFS->m_InProgress.has_value());
                 Log::Error() << "Failed to download " << pVFS->m_InProgress->path;
-                exit(-1);
                 emscripten_fetch_close(pFetch);
             };
             emscripten_fetch(&attr, url.str().c_str());
@@ -129,17 +128,22 @@ bool VFSWeb::FileWrite(const std::string& path, const std::vector<uint8_t>& byte
 
 bool VFSWeb::Exists(const std::string& path) const
 {
-    if (!m_pManifest || !m_pManifest->IsValid())
-    {
-        return false;
-    }
-    return m_pManifest->GetEntry(path) != nullptr;
+    return m_pManifest->ContainsEntry(path);
 }
 
 const std::vector<std::string> VFSWeb::List(const std::string& path) const
 {
-    Log::Warning() << "VFSWeb::List: Not implemented.";
-    return std::vector<std::string>();
+    const auto& manifestEntries = m_pManifest->GetEntries();
+    std::vector<std::string> files;
+    for (auto& entryPair : manifestEntries)
+    {
+        const std::string& entryKey = entryPair.first;
+        if (entryKey.starts_with(path))
+        {
+            files.push_back(entryKey);
+        }
+    }
+    return files;
 }
 
 } // namespace WingsOfSteel::Private
