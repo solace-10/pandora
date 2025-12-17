@@ -24,68 +24,76 @@ function authorizeRequest(request, env, key) {
       return hasValidHeader(request, env);
     case "HEAD":
     case "GET":
+    case "OPTIONS":
       return true;
     default:
       return false;
   }
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, HEAD, PUT, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Custom-Auth-Key",
+};
+
 export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request) {
+    // Handle CORS preflight requests
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
+
     const url = new URL(request.url);
     const key = url.pathname.slice(1);
 
     if (!authorizeRequest(request, this.env, key)) {
-      return new Response("Forbidden", { status: 403 });
+      return new Response("Forbidden", { status: 403, headers: corsHeaders });
     }
-    
+
     switch (request.method) {
       case "PUT": {
         await this.env.PANDORA_WEB_BUCKET.put(key, request.body, {
           onlyIf: request.headers,
           httpMetadata: request.headers,
         });
-        return new Response(`OK`);
+        return new Response(`OK`, { headers: corsHeaders });
       }
       case "GET": {
-        const object = await this.env.PANDORA_WEB_BUCKET.get(key, {
-          onlyIf: request.headers,
-          range: request.headers,
-        });
+        const object = await this.env.PANDORA_WEB_BUCKET.get(key);
 
         if (object === null) {
-          return new Response("Object Not Found", { status: 404 });
+          return new Response("Object Not Found", { status: 404, headers: corsHeaders });
         }
 
-        const headers = new Headers();
+        const headers = new Headers(corsHeaders);
         object.writeHttpMetadata(headers);
         headers.set("etag", object.httpEtag);
+        // Cache indefinitely - URLs are content-addressed by hash
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
 
-        // When no body is present, preconditions have failed
-        return new Response("body" in object ? object.body : undefined, {
-          status: "body" in object ? 200 : 412,
-          headers,
-        });
+        return new Response(object.body, { status: 200, headers });
       }
       case "HEAD": {
         const object = await this.env.PANDORA_WEB_BUCKET.head(key);
 
         if (object === null) {
-          return new Response(null, { status: 404 });
+          return new Response(null, { status: 404, headers: corsHeaders });
         }
 
-        const headers = new Headers();
+        const headers = new Headers(corsHeaders);
         object.writeHttpMetadata(headers);
         headers.set("etag", object.httpEtag);
         headers.set("content-length", object.size.toString());
 
         return new Response(null, { status: 200, headers });
-      }      
+      }
       default:
         return new Response("Method Not Allowed", {
           status: 405,
           headers: {
-            Allow: "PUT, GET, HEAD",
+            ...corsHeaders,
+            Allow: "PUT, GET, HEAD, OPTIONS",
           },
         });
     }
