@@ -99,9 +99,10 @@ elseif(TARGET_PLATFORM_WEB)
     target_compile_options(pandora PUBLIC 
         "-O0"
         "--use-port=bullet"
+        "-fsanitize=address"
     )
-    target_compile_definitions(pandora PRIVATE 
-        "VFS_WEB_HOST=\"http://127.0.0.1:8000\""
+    target_compile_definitions(pandora PRIVATE
+        "VFS_WEB_HOST=\"https://forge-cloudflare-worker.wings-of-steel.workers.dev/\""
     )
     target_link_options(pandora PUBLIC 
         "-sDEFAULT_TO_CXX"
@@ -109,12 +110,12 @@ elseif(TARGET_PLATFORM_WEB)
         "-sUSE_WEBGPU=1" 
         "-sUSE_GLFW=3" 
         "-sFETCH" 
-        "-sSAFE_HEAP" 
+        #"-sSAFE_HEAP=2" 
         "-sALLOW_MEMORY_GROWTH" 
         "-sASSERTIONS=2" 
         "-sSTACK_SIZE=5MB"
         "-sDISABLE_EXCEPTION_CATCHING"
-        #"-fsanitize=address"
+        "-fsanitize=address"
 
         "--shell-file=${CMAKE_CURRENT_LIST_DIR}/src/emscripten/shell_minimal.html"
         "--embed-file=${CMAKE_CURRENT_LIST_DIR}/../game/bin/manifest.json@/"
