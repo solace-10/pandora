@@ -39,11 +39,17 @@ void ResourceSystem::Update()
         {
             Log::Info() << "Loaded resource '" << pPendingResource.pResource->GetPath() << "'.";
             pPendingResource.onResourceAvailable(pPendingResource.pResource);
+            
+            // We mark the pending resource as handled, so we can remove it from the list later.
+            // It is necessary to do it this way rather than later checking if the resource is loaded, as
+            // it is possible for the onResourceAvailable() callback to add new entries to m_PendingResources,
+            // which can then cause callbacks to be missed.
+            pPendingResource.handled = true;
         }
     }
 
     m_PendingResources.remove_if([](const PendingResource& pendingResource) {
-        return pendingResource.pResource->GetState() == ResourceState::Loaded;
+        return pendingResource.handled;
     });
 }
 

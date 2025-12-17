@@ -48,6 +48,7 @@ private:
     {
         ResourceSharedPtr pResource;
         OnResourceAvailableCallback onResourceAvailable;
+        bool handled{ false };
     };
     std::list<PendingResource> m_PendingResources;
 
