@@ -2,15 +2,15 @@
 
 #if defined(TARGET_PLATFORM_WEB)
 
-#include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 namespace WingsOfSteel::Private
 {
 
 class ManifestEntry;
+using ManifestData = std::unordered_map<std::string, ManifestEntry>;
 
 class Manifest
 {
@@ -18,18 +18,13 @@ public:
     Manifest();
     ~Manifest();
 
-    void Initialize();
+    bool Initialize();
 
-    bool IsValid() const;
-    ManifestEntry* GetEntry(const std::string& path) const;
+    bool ContainsEntry(const std::string& path) const;
+    const ManifestEntry* GetEntry(const std::string& path) const;
+    const ManifestData& GetEntries() const;    
 
 private:
-    void OnDownloadSucceeded(const std::string& url, const char* pData, size_t dataSize);
-    void OnDownloadFailed(const std::string& url, int statusCode);
-
-    bool m_IsValid;
-    using ManifestEntryUniquePtr = std::unique_ptr<ManifestEntry>;
-    using ManifestData = std::unordered_map<std::string, ManifestEntryUniquePtr>;
     ManifestData m_ManifestData;
 };
 

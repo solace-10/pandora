@@ -33,7 +33,7 @@ private:
     struct QueuedFile
     {
         std::string path;
-        ManifestEntry* pManifestEntry;
+        const ManifestEntry* pManifestEntry;
         FileReadCallback onFileReadCompleted;
     };
     std::list<QueuedFile> m_Queue;
