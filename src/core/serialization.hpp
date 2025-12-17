@@ -61,31 +61,7 @@ Result<DeserializationError, glm::mat4> TryDeserializeMat4(const ResourceDataSto
 
 // Enum deserialization (template functions must be defined in header)
 // Uses magic_enum to convert string values to enum types
-template<typename EnumType>
-EnumType DeserializeEnum(const ResourceDataStore* pContext, const Data& data, const std::string& key, std::optional<EnumType> defaultValue = std::nullopt)
-{
-    auto result = TryDeserializeEnum<EnumType>(pContext, data, key, defaultValue);
-    if (result.has_value())
-    {
-        return result.value();
-    }
-    else
-    {
-        const std::string contextPath = pContext ? pContext->GetPath() : "<no context>";
-
-        if (result.error() == DeserializationError::KeyNotFound)
-        {
-            Log::Error() << contextPath << ": failed to find enum key '" << key << "'.";
-        }
-        else if (result.error() == DeserializationError::TypeMismatch)
-        {
-            Log::Error() << contextPath << ": key '" << key << "' is not a valid enum string.";
-        }
-
-        return defaultValue.value_or(static_cast<EnumType>(0));
-    }
-}
-
+// Note: TryDeserializeEnum must be declared before DeserializeEnum for proper template instantiation
 template<typename EnumType>
 Result<DeserializationError, EnumType> TryDeserializeEnum(const ResourceDataStore* pContext, const Data& data, const std::string& key, std::optional<EnumType> defaultValue = std::nullopt)
 {
@@ -129,6 +105,31 @@ Result<DeserializationError, EnumType> TryDeserializeEnum(const ResourceDataStor
                 return Result<DeserializationError, EnumType>(DeserializationError::TypeMismatch);
             }
         }
+    }
+}
+
+template<typename EnumType>
+EnumType DeserializeEnum(const ResourceDataStore* pContext, const Data& data, const std::string& key, std::optional<EnumType> defaultValue = std::nullopt)
+{
+    auto result = TryDeserializeEnum<EnumType>(pContext, data, key, defaultValue);
+    if (result.has_value())
+    {
+        return result.value();
+    }
+    else
+    {
+        const std::string contextPath = pContext ? pContext->GetPath() : "<no context>";
+
+        if (result.error() == DeserializationError::KeyNotFound)
+        {
+            Log::Error() << contextPath << ": failed to find enum key '" << key << "'.";
+        }
+        else if (result.error() == DeserializationError::TypeMismatch)
+        {
+            Log::Error() << contextPath << ": key '" << key << "' is not a valid enum string.";
+        }
+
+        return defaultValue.value_or(static_cast<EnumType>(0));
     }
 }
 
