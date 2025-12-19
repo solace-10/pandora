@@ -84,6 +84,19 @@
         e.preventDefault();
       }, false);
 
+      canvasElement.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        // Request pointer lock on click to capture all mouse input.
+        if (document.pointerLockElement !== canvasElement) {
+          canvasElement.requestPointerLock();
+        }
+      }, false);
+
+      // Prevent auxiliary button actions (middle click, etc.)
+      canvasElement.addEventListener("auxclick", (e) => {
+        e.preventDefault();
+      }, false);
+
       var Module = {
         print(...args) {
           // These replacements are necessary if you render to raw HTML
