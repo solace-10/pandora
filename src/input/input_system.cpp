@@ -151,10 +151,11 @@ void InputSystem::HandleMousePositionEvent(double xPos, double yPos)
     const glm::vec2 currentVirtualCursorPosition(xPos, yPos);
     const glm::vec2 cursorDelta = currentVirtualCursorPosition - m_PreviousVirtualCursorPosition.value();
     m_CursorPosition += cursorDelta;
-    m_CursorPosition.x = glm::clamp(m_CursorPosition.x, 0.0f, static_cast<float>(GetWindow()->GetWidth()));
-    m_CursorPosition.y = glm::clamp(m_CursorPosition.y, 0.0f, static_cast<float>(GetWindow()->GetHeight()));
     m_PreviousVirtualCursorPosition = currentVirtualCursorPosition;
 #endif
+
+    m_CursorPosition.x = glm::clamp(m_CursorPosition.x, 0.0f, static_cast<float>(GetWindow()->GetWidth()));
+    m_CursorPosition.y = glm::clamp(m_CursorPosition.y, 0.0f, static_cast<float>(GetWindow()->GetHeight()));
 
     for (auto& callbackInfo : m_MousePositionCallbacks)
     {
