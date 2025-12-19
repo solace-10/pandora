@@ -94,6 +94,7 @@ void Update()
 
     GetVFS()->Update();
     GetResourceSystem()->Update();
+    GetInputSystem()->Update();
     GetDebugRender()->Update(delta);
     GetImGuiSystem()->Update();
 

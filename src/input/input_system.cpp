@@ -1,7 +1,12 @@
 #include <GLFW/glfw3.h>
-#include <imgui.h>
+#include <glm/glm.hpp>
+
+#if defined(TARGET_PLATFORM_WEB)
+#include <emscripten/html5.h>
+#endif
 
 #include "core/log.hpp"
+#include "imgui/imgui.hpp"
 #include "input/input_system.hpp"
 #include "pandora.hpp"
 #include "render/window.hpp"
@@ -49,6 +54,28 @@ void InputSystem::Initialize()
     glfwSetCursorEnterCallback(pWindow, [](GLFWwindow* pWindow, int entered) {
         GetInputSystem()->HandleCursorEnterEvent(entered == GLFW_TRUE);
     });
+
+    // GLFW_CURSOR_DISABLED locks the cursor to the window, hides it and all cursor positions become
+    // virtual (unbounded by the window or monitor's resolution).
+    // This lets us have an in-game cursor which is consistent between Web and Native, and for the
+    // Web client it works in conjunction with `requestPointerLock` to ensure the client gets all
+    // mouse button events correctly.
+    glfwSetInputMode(pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // If possible, get the positions based on the raw motion, which is not affected by OS-level
+    // settings regarding mouse acceleration.
+    if (glfwRawMouseMotionSupported())
+    {
+        glfwSetInputMode(pWindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
+}
+
+void InputSystem::Update()
+{
+    if (IsCursorLocked())
+    {
+        ImGui::GetForegroundDrawList()->AddCircleFilled(m_CursorPosition, 4.0f, IM_COL32(255, 0, 0, 255));
+    }
 }
 
 void InputSystem::HandleMouseWheelEvent(double xOffset, double yOffset)
@@ -105,17 +132,33 @@ void InputSystem::HandleMouseButtonEvent(int button, int action, int mods)
 
 void InputSystem::HandleMousePositionEvent(double xPos, double yPos)
 {
-    const glm::vec2 mousePosition(static_cast<float>(xPos), static_cast<float>(yPos));
-    glm::vec2 mouseDelta(0.0f);
-    if (m_PreviousMousePosition)
+    if (!IsCursorLocked())
     {
-        mouseDelta = mousePosition - m_PreviousMousePosition.value();
+        return;
     }
-    m_PreviousMousePosition = mousePosition;
+
+#if defined(TARGET_PLATFORM_WEB)
+    // When the cursor is locked, on Web, we receive deltas rather than the expected position.
+    // A quirk of GLFW/Emscripten?
+    const glm::vec2 cursorDelta(xPos, yPos);
+    m_CursorPosition += cursorDelta;
+#else
+    if (!m_PreviousVirtualCursorPosition)
+    {
+        m_PreviousVirtualCursorPosition = glm::vec2(xPos, yPos);
+    }
+
+    const glm::vec2 currentVirtualCursorPosition(xPos, yPos);
+    const glm::vec2 cursorDelta = currentVirtualCursorPosition - m_PreviousVirtualCursorPosition.value();
+    m_CursorPosition += cursorDelta;
+    m_CursorPosition.x = glm::clamp(m_CursorPosition.x, 0.0f, static_cast<float>(GetWindow()->GetWidth()));
+    m_CursorPosition.y = glm::clamp(m_CursorPosition.y, 0.0f, static_cast<float>(GetWindow()->GetHeight()));
+    m_PreviousVirtualCursorPosition = currentVirtualCursorPosition;
+#endif
 
     for (auto& callbackInfo : m_MousePositionCallbacks)
     {
-        callbackInfo.callback(mousePosition, mouseDelta);
+        callbackInfo.callback(m_CursorPosition, cursorDelta);
     }
 }
 
@@ -123,7 +166,7 @@ void InputSystem::HandleCursorEnterEvent(bool entered)
 {
     if (entered)
     {
-        m_PreviousMousePosition.reset();
+        m_PreviousVirtualCursorPosition.reset();
     }
 }
 
@@ -185,6 +228,22 @@ void InputSystem::RemoveMouseWheelCallback(InputCallbackToken token)
 void InputSystem::RemoveMousePositionCallback(InputCallbackToken token)
 {
     m_MousePositionCallbacks.remove_if([token](const InputCallbackMousePositionInfo& callbackInfo) { return token == callbackInfo.token; });
+}
+
+bool InputSystem::IsCursorLocked() const
+{
+#if defined(TARGET_PLATFORM_NATIVE)
+    return glfwGetWindowAttrib(GetWindow()->GetRawWindow(), GLFW_FOCUSED);
+#elif defined(TARGET_PLATFORM_WEB)
+    EmscriptenPointerlockChangeEvent pointerLockStatus;
+    if (emscripten_get_pointerlock_status(&pointerLockStatus) == EMSCRIPTEN_RESULT_SUCCESS)
+    {
+        return pointerLockStatus.isActive;
+    }
+    return false;
+#else
+    static_assert(false);
+#endif
 }
 
 } // namespace WingsOfSteel
