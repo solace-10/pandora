@@ -11,6 +11,7 @@
 #include "imgui/fonts/supplymono_regular_data.hpp"
 #include "imgui/fonts/supplymono_semibold_data.hpp"
 #include "imgui/fonts/ubuntu_mono_data.hpp"
+#include "input/input_system.hpp"
 #include "pandora.hpp"
 #include "render/lighting/lighting_system.hpp"
 #include "render/debug_render.hpp"
@@ -56,6 +57,11 @@ ImGuiSystem::~ImGuiSystem()
 
 void ImGuiSystem::OnFrameStart()
 {
+    // Override the cursor position with the one from the InputSystem.
+    // This needs to happen before new frame, which is where the events are processed.
+    const glm::vec2 cursorPosition = GetInputSystem()->GetCursorPosition();
+    ImGui::GetIO().AddMousePosEvent(cursorPosition.x, cursorPosition.y);
+    
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();

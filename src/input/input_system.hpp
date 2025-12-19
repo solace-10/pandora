@@ -41,6 +41,7 @@ public:
     InputSystem();
     ~InputSystem();
     void Initialize();
+    void Update();
 
     InputCallbackToken AddKeyboardCallback(InputCallbackKeyboardFn callback, int key, KeyAction action);
     InputCallbackToken AddMouseButtonCallback(InputCallbackMouseButtonFn callback, MouseButton button, MouseAction action);
@@ -51,6 +52,8 @@ public:
     void RemoveMouseButtonCallback(InputCallbackToken token);
     void RemoveMouseWheelCallback(InputCallbackToken token);
     void RemoveMousePositionCallback(InputCallbackToken token);
+
+    const glm::vec2& GetCursorPosition() const { return m_CursorPosition; }
 
     static InputCallbackToken sInvalidInputCallbackToken;
 
@@ -96,6 +99,8 @@ private:
     void HandleMouseWheelEvent(double xOffset, double yOffset);
     void HandleCursorEnterEvent(bool entered);
 
+    bool IsCursorLocked() const;
+
     CallbackKeyboardList m_KeyboardCallbacks;
     CallbackMouseList m_MouseCallbacks;
     CallbackMouseWheelList m_MouseWheelCallbacks;
@@ -103,7 +108,9 @@ private:
 
     static InputCallbackToken m_sToken;
 
-    std::optional<glm::vec2> m_PreviousMousePosition;
+    glm::vec2 m_CursorPosition{ 0.0f, 0.0f };
+    std::optional<glm::vec2> m_PreviousVirtualCursorPosition;
+    bool m_IsCursorVisible{ false };
 };
 
 //////////////////////////////////////////////////////////////////////////
