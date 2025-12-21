@@ -32,7 +32,7 @@ bool OnWindowResizedCallback(int eventType, const EmscriptenUiEvent* pEvent, voi
 {
     const int width = pEvent->windowInnerWidth;
     const int height = pEvent->windowInnerHeight;
-    if (width < 1 || height < 1)
+    if (width < 1 || height < 1 || width > 8192 || height > 8192)
     {
         Log::Warning() << "Invalid window dimensions: " << width << "x" << height;
         return false;
@@ -68,6 +68,7 @@ Window::Window(const WindowSettings& windowSettings)
     emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight);
     m_Width = static_cast<uint32_t>(cssWidth);
     m_Height = static_cast<uint32_t>(cssHeight);
+    m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
 
     // glfwSetWindowSizeCallback() does not work: presumably the "window" is never resized, and just exists
     // within the canvas.
@@ -96,9 +97,8 @@ void Window::OnWindowResized(uint32_t width, uint32_t height)
     m_Height = height;
 
 #if defined(TARGET_PLATFORM_WEB)
-    // On Web the underlying canvas has been resized, and the window needs to be rebuilt to match the size.
-    glfwDestroyWindow(m_pWindow);
-    m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
+    // On Web the underlying canvas has been resized, resize the GLFW window to match.
+    glfwSetWindowSize(m_pWindow, m_Width, m_Height);
 #endif
 
     ImGui_ImplWGPU_InvalidateDeviceObjects();
