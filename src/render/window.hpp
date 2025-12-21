@@ -33,14 +33,15 @@ public:
 private:
     void ConfigureSurface();
 
-    GLFWwindow* m_pWindow;
+    GLFWwindow* m_pWindow{ nullptr };
     wgpu::Surface m_Surface;
     wgpu::TextureFormat m_Format;
-    uint32_t m_Width;
-    uint32_t m_Height;
+    uint32_t m_Width{ 0 };
+    uint32_t m_Height{ 0 };
     DepthTexture m_DepthTexture;
     ColorTexture m_MsaaColorTexture;
     bool m_VSyncEnabled = true;
+    std::string m_Title;
 };
 
 inline wgpu::Surface Window::GetSurface() const
