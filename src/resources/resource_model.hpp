@@ -3,10 +3,10 @@
 #include "resources/resource.fwd.hpp"
 #include "resources/resource.hpp"
 
-#include <array>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <glm/mat4x4.hpp>
@@ -115,6 +115,8 @@ private:
     void CreateTextureUniforms();
     void HandleShaderInjection();
     void RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& node, const glm::mat4& parentTransform);
+    void TagSrgbTextures();
+    bool IsSrgbTexture(int textureIndex) const;    
 
     std::unique_ptr<tinygltf::Model> m_pModel;
     std::vector<wgpu::Buffer> m_Buffers;
@@ -190,6 +192,7 @@ private:
 
     CollisionShapeSharedPtr m_pCollisionShape;
     Id m_Id{ 0 };
+    std::unordered_set<int> m_SrgbIndices;
 };
 
 } // namespace WingsOfSteel

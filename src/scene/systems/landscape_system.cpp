@@ -79,7 +79,7 @@ void LandscapeSystem::GenerateDebugHeightmapTexture(LandscapeComponent& landscap
         textureData[index + 2] = height;
         textureData[index + 3] = 255;
     }
-    landscapeComponent.DebugHeightmapTexture = std::make_unique<ResourceTexture2D>("Heightmap", textureData.data(), textureData.size(), landscapeComponent.Width, landscapeComponent.Length, 4);
+    landscapeComponent.DebugHeightmapTexture = std::make_unique<ResourceTexture2D>("Heightmap", ColorSpace::Linear, textureData.data(), textureData.size(), landscapeComponent.Width, landscapeComponent.Length, 4);
 }
 
 void LandscapeSystem::DrawDebugUI()
