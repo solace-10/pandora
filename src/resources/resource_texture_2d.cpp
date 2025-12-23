@@ -20,15 +20,15 @@
 namespace WingsOfSteel
 {
 
-ResourceTexture2D::ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize)
+ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize)
 {
-    LoadFromMemoryCompressed(label, pData, dataSize);
+    LoadFromMemoryCompressed(label, colorSpace, pData, dataSize);
 }
 
 
-ResourceTexture2D::ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
 {
-    LoadFromMemoryUncompressed(label, pData, dataSize, width, height, channels);
+    LoadFromMemoryUncompressed(label, colorSpace, pData, dataSize, width, height, channels);
 }
 
 ResourceTexture2D::~ResourceTexture2D()
@@ -63,7 +63,9 @@ void ResourceTexture2D::LoadInternal(FileReadResult result, FileSharedPtr pFile)
 {
     if (result == FileReadResult::Ok)
     {
-        LoadFromMemoryCompressed(pFile->GetPath(), reinterpret_cast<const unsigned char*>(pFile->GetData().data()), pFile->GetData().size());
+        // We currently assume that all textures loaded through the VFS are in sRGB.
+        // This will be true in most cases, but we really should check the file header for colorspace information.
+        LoadFromMemoryCompressed(pFile->GetPath(), ColorSpace::sRGB, reinterpret_cast<const unsigned char*>(pFile->GetData().data()), pFile->GetData().size());
     }
     else
     {
@@ -71,7 +73,7 @@ void ResourceTexture2D::LoadInternal(FileReadResult result, FileSharedPtr pFile)
     }
 }
 
-void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, const unsigned char* pData, size_t dataSize)
+void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize)
 {
     m_Channels = 4; // Setting desired channels to 4 as WGPU has no RGB8, just RGBA8.
     int width = 0;
@@ -91,12 +93,11 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, const
 
     if (pTextureData)
     {
-        // TODO: Convert to GPU texture here.
         wgpu::TextureDescriptor textureDescriptor{
             .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
             .dimension = wgpu::TextureDimension::e2D,
             .size = { m_Width, m_Height, 1 },
-            .format = wgpu::TextureFormat::RGBA8Unorm,
+            .format = GetTextureFormat(colorSpace),
             .mipLevelCount = 1,
             .sampleCount = 1
         };
@@ -136,7 +137,7 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, const
     }
 }
 
-void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
 {
     m_Width = width;
     m_Height = height;
@@ -145,7 +146,7 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, con
         .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
         .dimension = wgpu::TextureDimension::e2D,
         .size = { m_Width, m_Height, 1 },
-        .format = wgpu::TextureFormat::RGBA8Unorm,
+        .format = GetTextureFormat(colorSpace),
         .mipLevelCount = 1,
         .sampleCount = 1
     };
@@ -176,6 +177,11 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, con
     m_TextureView = m_Texture.CreateView(&textureViewDescriptor);
 
     SetState(ResourceState::Loaded);
+}
+
+wgpu::TextureFormat ResourceTexture2D::GetTextureFormat(ColorSpace colorSpace) const
+{
+    return (colorSpace == ColorSpace::Linear) ? wgpu::TextureFormat::RGBA8Unorm : wgpu::TextureFormat::RGBA8UnormSrgb;
 }
 
 } // namespace WingsOfSteel

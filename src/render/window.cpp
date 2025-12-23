@@ -1,3 +1,4 @@
+#include "webgpu/webgpu_cpp.h"
 #if defined(TARGET_PLATFORM_NATIVE)
 #include <webgpu/webgpu_glfw.h>
 #elif defined(TARGET_PLATFORM_WEB)
@@ -121,7 +122,25 @@ void Window::ConfigureSurface()
 
         wgpu::SurfaceCapabilities capabilities;
         m_Surface.GetCapabilities(GetRenderSystem()->GetAdapter(), &capabilities);
-        m_Format = capabilities.formats[0];
+
+        // Ideally we'd use BGRA8UnormSrgb for automatic conversion to sRGB, but glfw::CreateSurfaceForWindow
+        // always creates a surface in BGRA8Unorm.
+        m_Format = wgpu::TextureFormat::BGRA8Unorm;
+        bool formatAvailable = false;
+        for (int index = 0; index < capabilities.formatCount; index++)
+        {
+            if (capabilities.formats[index] == m_Format)
+            {
+                formatAvailable = true;
+                break;
+            }
+        }
+
+        if (!formatAvailable)
+        {
+            Log::Error() << "Failed to create window surface with format " << magic_enum::enum_name(m_Format);
+            return;
+        }
 
         Log::Info() << "Configuring surface: ";
         Log::Info() << "- Format: " << magic_enum::enum_name(m_Format);

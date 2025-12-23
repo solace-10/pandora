@@ -4,6 +4,8 @@
 
 #include <webgpu/webgpu_cpp.h>
 
+#include "render/color_space.hpp"
+
 namespace WingsOfSteel
 {
 
@@ -11,8 +13,8 @@ class ResourceTexture2D : public Resource
 {
 public:
     ResourceTexture2D() {}
-    ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize); // Construct from compressed data.
-    ResourceTexture2D(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels); // Construct from uncompressed data.
+    ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize); // Construct from compressed data.
+    ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels); // Construct from uncompressed data.
     ~ResourceTexture2D() override;
 
     void Load(const std::string& path) override;
@@ -25,8 +27,9 @@ public:
 
 private:
     void LoadInternal(FileReadResult result, FileSharedPtr pFile);
-    void LoadFromMemoryCompressed(const std::string& label, const unsigned char* pData, size_t dataSize);
-    void LoadFromMemoryUncompressed(const std::string& label, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels);
+    void LoadFromMemoryCompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize);
+    void LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels);
+    wgpu::TextureFormat GetTextureFormat(ColorSpace colorSpace) const;
 
     wgpu::Texture m_Texture;
     wgpu::TextureView m_TextureView;

@@ -3,6 +3,7 @@
 #include "core/log.hpp"
 #include "pandora.hpp"
 #include "physics/collision_shape.hpp"
+#include "render/color_space.hpp"
 #include "render/debug_render.hpp"
 #include "render/instance_parameter_buffer.hpp"
 #include "render/rendersystem.hpp"
@@ -313,6 +314,8 @@ void ResourceModel::LoadDependentResources()
             });
         }
 
+        TagSrgbTextures();
+
         const size_t numImages = m_pModel->images.size();
         m_Textures.resize(numImages);
         for (size_t i = 0; i < numImages; i++)
@@ -326,7 +329,8 @@ void ResourceModel::LoadDependentResources()
                 auto& bufferView = m_pModel->bufferViews[image.bufferView];
                 auto& buffer = m_pModel->buffers[bufferView.buffer];
                 const std::string label = GetPath() + "[" + image.name + "]";
-                m_Textures[i] = std::make_unique<ResourceTexture2D>(label, &buffer.data[bufferView.byteOffset], bufferView.byteLength);
+                ColorSpace colorSpace = IsSrgbTexture(i) ? ColorSpace::sRGB : ColorSpace::Linear;
+                m_Textures[i] = std::make_unique<ResourceTexture2D>(label, colorSpace, &buffer.data[bufferView.byteOffset], bufferView.byteLength);
                 m_DependentResourcesLoaded++;
             }
             else if (!image.uri.empty()) // If we have a URI, then the texture is a local file. Path must be relative to the model file.
@@ -1054,6 +1058,31 @@ void ResourceModel::HandleShaderInjection()
                 }
             });
     }
+}
+
+// The base color and emissive textures need to be marked as being in sRGB format, while the others are linear.
+// This removes the need to do the sRGB -> linear conversion in the shader; the conversion will happen in hardware
+// and will be more accurate, as the usual pow(2.2) is an approximation.
+void ResourceModel::TagSrgbTextures()
+{
+    auto tagSrgbTexture = [this](int textureIndex) {
+        if (textureIndex >= 0 && textureIndex < m_pModel->textures.size())
+        {
+            m_SrgbIndices.insert(m_pModel->textures[textureIndex].source);
+            Log::Info() << "Tagged texture " << m_pModel->textures[textureIndex].source << " as sRGB.";
+        }
+    };
+
+    for (const auto& material : m_pModel->materials)
+    {
+        tagSrgbTexture(material.pbrMetallicRoughness.baseColorTexture.index);
+        tagSrgbTexture(material.emissiveTexture.index);
+    }
+}
+
+bool ResourceModel::IsSrgbTexture(int textureIndex) const
+{
+    return m_SrgbIndices.find(textureIndex) != m_SrgbIndices.cend();
 }
 
 } // namespace WingsOfSteel
