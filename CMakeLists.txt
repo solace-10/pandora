@@ -96,26 +96,51 @@ elseif(TARGET_PLATFORM_WEB)
     add_dependencies(pandora forge_generate_manifest forge_upload)
     add_dependencies(forge_upload forge_generate_manifest)
 
-    target_compile_options(pandora PUBLIC 
-        "-O0"
+    target_compile_options(pandora PUBLIC
         "--use-port=bullet"
         "--use-port=contrib.glfw3"
-        #"-fsanitize=address"
     )
+
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_options(pandora PUBLIC
+            "-O0"
+        )
+        
+        #target_link_options(pandora PUBLIC
+        #    "-sASSERTIONS=2"
+        #    "-fsanitize=address"
+        #)
+    else()
+        target_compile_options(pandora PUBLIC
+            "-O3"
+            "-flto"
+        )
+        target_link_options(pandora PUBLIC
+            "-O3"
+            "-flto"
+            "-sASSERTIONS=0"
+            "-sEVAL_CTORS=2"
+        )
+    endif()
+    
     target_compile_definitions(pandora PRIVATE
-        "VFS_WEB_HOST=\"https://forge-cloudflare-worker.wings-of-steel.workers.dev/\""
+        "VFS_WEB_HOST=\"https://forge-cloudflare-worker.wings-of-steel.workers.dev/\""        
+    )
+    target_compile_options(pandora PUBLIC
+        "-msimd128"
     )
     target_link_options(pandora PUBLIC 
         "-sDEFAULT_TO_CXX"
+        "-sENVIRONMENT=web" # Removes Node.js support
         "--use-port=bullet"
         "--use-port=contrib.glfw3"
         "-sUSE_WEBGPU=1" 
         "-sFETCH" 
-        "-sALLOW_MEMORY_GROWTH" 
-        #"-sASSERTIONS=2" 
+        "-sALLOW_MEMORY_GROWTH"
+        "-sNO_EXIT_RUNTIME=1"
         "-sSTACK_SIZE=5MB"
         "-sDISABLE_EXCEPTION_CATCHING"
-        #"-fsanitize=address"
 
         "--shell-file=${CMAKE_CURRENT_LIST_DIR}/src/emscripten/shell_minimal.html"
         "--embed-file=${CMAKE_CURRENT_LIST_DIR}/../game/bin/manifest.json@/"
