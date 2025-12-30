@@ -1069,7 +1069,6 @@ void ResourceModel::TagSrgbTextures()
         if (textureIndex >= 0 && textureIndex < m_pModel->textures.size())
         {
             m_SrgbIndices.insert(m_pModel->textures[textureIndex].source);
-            Log::Info() << "Tagged texture " << m_pModel->textures[textureIndex].source << " as sRGB.";
         }
     };
 
