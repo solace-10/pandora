@@ -141,8 +141,6 @@ elseif(TARGET_PLATFORM_WEB)
         "-sNO_EXIT_RUNTIME=1"
         "-sSTACK_SIZE=5MB"
         "-sDISABLE_EXCEPTION_CATCHING"
-
-        "--shell-file=${CMAKE_CURRENT_LIST_DIR}/src/emscripten/shell_minimal.html"
         "--embed-file=${CMAKE_CURRENT_LIST_DIR}/../game/bin/manifest.json@/"
     )
 endif()
