@@ -69,6 +69,7 @@ void ImGuiSystem::OnFrameStart()
 
 void ImGuiSystem::Update()
 {
+#if defined(BUILD_DEBUG)
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::BeginMenu("Engine"))
@@ -112,6 +113,7 @@ void ImGuiSystem::Update()
     {
         ImGui::ShowDemoWindow(&m_ShowDemoWindow);
     }
+#endif // BUILD_DEBUG
 }
 
 void ImGuiSystem::Render(wgpu::RenderPassEncoder& pass)
