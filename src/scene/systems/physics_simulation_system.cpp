@@ -193,6 +193,9 @@ std::vector<PhysicsSimulationSystem::RaycastResult> PhysicsSimulationSystem::Ray
 
 void PhysicsSimulationSystem::SetCollisionBetween(EntitySharedPtr pEntity1, EntitySharedPtr pEntity2, bool enable)
 {
+#if TARGET_PLATFORM_WEB
+    Log::Warning() << "PhysicsSimulationSystem::SetCollisionBetween is unsupported for TARGET_PLATFORM_WEB.";
+#elif
     if (!pEntity1 || !pEntity2)
     {
         return;
@@ -214,6 +217,7 @@ void PhysicsSimulationSystem::SetCollisionBetween(EntitySharedPtr pEntity1, Enti
         pBulletRB1->setIgnoreCollisionCheck(pBulletRB2, !enable);
         pBulletRB2->setIgnoreCollisionCheck(pBulletRB1, !enable);
     }
+#endif
 }
 
 EntitySharedPtr PhysicsSimulationSystem::CollisionObjectToEntity(const btCollisionObject* pCollisionObject)
