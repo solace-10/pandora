@@ -193,9 +193,9 @@ std::vector<PhysicsSimulationSystem::RaycastResult> PhysicsSimulationSystem::Ray
 
 void PhysicsSimulationSystem::SetCollisionBetween(EntitySharedPtr pEntity1, EntitySharedPtr pEntity2, bool enable)
 {
-#if TARGET_PLATFORM_WEB
+#if defined(TARGET_PLATFORM_WEB)
     Log::Warning() << "PhysicsSimulationSystem::SetCollisionBetween is unsupported for TARGET_PLATFORM_WEB.";
-#elif
+#else
     if (!pEntity1 || !pEntity2)
     {
         return;
