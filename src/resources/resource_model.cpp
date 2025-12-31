@@ -238,6 +238,7 @@ void ResourceModel::InitializeShaderLocationsMap()
         sShaderLocationsMap["NORMAL"] = 1;
         sShaderLocationsMap["TEXCOORD_0"] = 2;
         sShaderLocationsMap["COLOR_0"] = 3;
+        sShaderLocationsMap["TANGENT"] = 4;
         sShaderLocationsMapInitialized = true;
     }
 }
@@ -730,6 +731,10 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
             else if (accessor.type == TINYGLTF_TYPE_VEC3)
             {
                 arrayStride = 3 * sizeof(float);
+            }
+            else if (accessor.type == TINYGLTF_TYPE_VEC4)
+            {
+                arrayStride = 4 * sizeof(float);
             }
             else
             {
