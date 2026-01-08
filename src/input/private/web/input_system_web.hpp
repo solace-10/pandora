@@ -2,8 +2,9 @@
 
 #if defined(TARGET_PLATFORM_WEB)
 
-#include <array>
 #include <vector>
+
+#include <glm/vec2.hpp>
 
 #include "input/private/input_system_impl.hpp"
 
@@ -20,11 +21,13 @@ public:
     void Update() override;
     bool IsCursorLocked() const override;
 
+    void HandleLockedMousePositionEvent(const glm::vec2& mouseDelta);
+    void HandleUnlockedMousePositionEvent(const glm::vec2& mousePosition);
+
 private:
     static const std::vector<int>& GetPolledKeys();
 
-    std::array<bool, 512> m_PreviousKeyState{};
-    std::array<bool, 3> m_PreviousMouseButtonState{};
+    glm::vec2 m_CursorPosition{ 0.0f };
 };
 
 } // namespace WingsOfSteel::Private
