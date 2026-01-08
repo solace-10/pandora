@@ -3,12 +3,25 @@
 #include <array>
 #include <functional>
 #include <list>
+#include <memory>
 #include <optional>
 
 #include <glm/vec2.hpp>
 
 namespace WingsOfSteel
 {
+
+namespace Private
+{
+class InputSystemImpl;
+}
+
+enum class CursorMode
+{
+    Normal, // The cursor can enter and leave the window at will.
+    Locked  // The cursor is locked inside the window and cannot leave (other than by another window getting focus on native, or pressing escape on Web)
+};
+
 enum class MouseButton
 {
     Left,
@@ -53,11 +66,19 @@ public:
     void RemoveMouseWheelCallback(InputCallbackToken token);
     void RemoveMousePositionCallback(InputCallbackToken token);
 
-    const glm::vec2& GetCursorPosition() const { return m_CursorPosition; }
+    void HandleKeyboardEvent(int key, int scancode, int action, int mods);
+    void HandleMouseButtonEvent(int button, int action, int mods);
+    void HandleMousePositionEvent(const glm::vec2& position);
+    void HandleMouseWheelEvent(double xOffset, double yOffset);
+    void HandleCursorEnterEvent(bool entered);
+
+    void SetCursorMode(CursorMode cursorMode);
+    const std::optional<glm::vec2> GetCursorPosition() const { return m_CursorPosition; }
 
     static InputCallbackToken sInvalidInputCallbackToken;
 
 private:
+    friend class Private::InputSystemImpl;
     struct InputCallbackKeyboardInfo
     {
         InputCallbackToken token;
@@ -92,13 +113,6 @@ private:
     using CallbackMousePositionList = std::list<InputCallbackMousePositionInfo>;
 
     InputCallbackToken GenerateToken();
-
-    void HandleKeyboardEvent(int key, int scancode, int action, int mods);
-    void HandleMouseButtonEvent(int button, int action, int mods);
-    void HandleMousePositionEvent(double xPos, double yPos);
-    void HandleMouseWheelEvent(double xOffset, double yOffset);
-    void HandleCursorEnterEvent(bool entered);
-
     bool IsCursorLocked() const;
 
     CallbackKeyboardList m_KeyboardCallbacks;
@@ -108,9 +122,12 @@ private:
 
     static InputCallbackToken m_sToken;
 
-    glm::vec2 m_CursorPosition{ 0.0f, 0.0f };
-    std::optional<glm::vec2> m_PreviousVirtualCursorPosition;
+    std::optional<glm::vec2> m_PreviousCursorPosition;
+    std::optional<glm::vec2> m_CursorPosition;
     bool m_IsCursorVisible{ false };
+    CursorMode m_CursorMode{ CursorMode::Normal };
+
+    std::unique_ptr<Private::InputSystemImpl> m_pImpl;
 };
 
 //////////////////////////////////////////////////////////////////////////
