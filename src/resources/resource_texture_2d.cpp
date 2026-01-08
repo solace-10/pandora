@@ -1,8 +1,13 @@
 #include "resources/resource_texture_2d.hpp"
 
+#include <optional>
+
 #include "core/log.hpp"
 #include "pandora.hpp"
+#include "render/mip_level_generator.hpp"
 #include "render/rendersystem.hpp"
+#include "resources/resource_shader.hpp"
+#include "resources/resource_system.hpp"
 
 // clang-format off
 #define STB_IMAGE_IMPLEMENTATION
@@ -20,11 +25,12 @@
 namespace WingsOfSteel
 {
 
+static std::optional<wgpu::ShaderModule> s_MipsShaderModule;
+
 ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize)
 {
     LoadFromMemoryCompressed(label, colorSpace, pData, dataSize);
 }
-
 
 ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
 {
@@ -77,7 +83,7 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, Color
 {
     m_Channels = 4; // Setting desired channels to 4 as WGPU has no RGB8, just RGBA8.
     int width = 0;
-    int height = 0; 
+    int height = 0;
     int channelsInMemory = 0;
     unsigned char* pTextureData = stbi_load_from_memory(
         reinterpret_cast<const stbi_uc*>(pData),
@@ -94,11 +100,11 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, Color
     if (pTextureData)
     {
         wgpu::TextureDescriptor textureDescriptor{
-            .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+            .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::RenderAttachment,
             .dimension = wgpu::TextureDimension::e2D,
             .size = { m_Width, m_Height, 1 },
             .format = GetTextureFormat(colorSpace),
-            .mipLevelCount = 1,
+            .mipLevelCount = GetRenderSystem()->GetMipLevelGenerator()->GetMipLevelCount(static_cast<uint32_t>(width), static_cast<uint32_t>(height)),
             .sampleCount = 1
         };
 
@@ -117,6 +123,8 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, Color
 
         const size_t textureDataSize = m_Width * m_Height * m_Channels;
         GetRenderSystem()->GetDevice().GetQueue().WriteTexture(&destination, pTextureData, textureDataSize, &sourceLayout, &textureDescriptor.size);
+
+        GetRenderSystem()->GetMipLevelGenerator()->GenerateMips(m_Texture);
 
         wgpu::TextureViewDescriptor textureViewDescriptor{
             .label = label.c_str(),
@@ -143,11 +151,11 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, Col
     m_Height = height;
     m_Channels = channels;
     wgpu::TextureDescriptor textureDescriptor{
-        .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+        .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::RenderAttachment,
         .dimension = wgpu::TextureDimension::e2D,
         .size = { m_Width, m_Height, 1 },
         .format = GetTextureFormat(colorSpace),
-        .mipLevelCount = 1,
+        .mipLevelCount = GetRenderSystem()->GetMipLevelGenerator()->GetMipLevelCount(width, height),
         .sampleCount = 1
     };
 
@@ -166,6 +174,8 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, Col
 
     const size_t textureDataSize = m_Width * m_Height * m_Channels;
     GetRenderSystem()->GetDevice().GetQueue().WriteTexture(&destination, pData, dataSize, &sourceLayout, &textureDescriptor.size);
+
+    GetRenderSystem()->GetMipLevelGenerator()->GenerateMips(m_Texture);
 
     wgpu::TextureViewDescriptor textureViewDescriptor{
         .label = label.c_str(),

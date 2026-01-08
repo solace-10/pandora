@@ -11,6 +11,7 @@
 #include "render/lighting/lighting_system.hpp"
 #include "render/render_pass/base_render_pass.hpp"
 #include "render/render_pass/ui_render_pass.hpp"
+#include "render/mip_level_generator.hpp"
 #include "render/shader_compiler.hpp"
 #include "render/shader_editor.hpp"
 #include "render/vertex_buffer_schemas.hpp"
@@ -76,6 +77,7 @@ void RenderSystem::Initialize(OnRenderSystemInitializedCallback onInitializedCal
 void RenderSystem::InitializeInternal()
 {
     CreateGlobalUniforms();
+    m_pMipLevelGenerator = std::make_unique<MipLevelGenerator>();
     m_pVertexBufferSchemas = std::make_unique<VertexBufferSchemas>();
     m_pShaderCompiler = std::make_unique<ShaderCompiler>();
     m_pShaderEditor = std::make_unique<ShaderEditor>();
@@ -322,6 +324,11 @@ const wgpu::VertexBufferLayout* RenderSystem::GetVertexBufferLayout(VertexFormat
 LightingSystem* RenderSystem::GetLightingSystem() const
 {
     return m_pLightingSystem.get();
+}
+
+MipLevelGenerator* RenderSystem::GetMipLevelGenerator() const
+{
+    return m_pMipLevelGenerator.get();
 }
 
 ShaderCompiler* RenderSystem::GetShaderCompiler() const
