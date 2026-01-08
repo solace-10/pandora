@@ -1,8 +1,10 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-#if defined(TARGET_PLATFORM_WEB)
-#include <emscripten/html5.h>
+#if defined(TARGET_PLATFORM_NATIVE)
+#include "input/private/native/input_system_native.hpp"
+#elif defined(TARGET_PLATFORM_WEB)
+#include "input/private/web/input_system_web.hpp"
 #endif
 
 #include "core/log.hpp"
@@ -23,58 +25,46 @@ InputSystem::InputSystem()
 
 InputSystem::~InputSystem()
 {
-    GLFWwindow* pWindow = GetWindow()->GetRawWindow();
-    glfwSetKeyCallback(pWindow, nullptr);
-    glfwSetMouseButtonCallback(pWindow, nullptr);
-    glfwSetCursorPosCallback(pWindow, nullptr);
-    glfwSetScrollCallback(pWindow, nullptr);
-    glfwSetCursorEnterCallback(pWindow, nullptr);
 }
 
 void InputSystem::Initialize()
 {
-    GLFWwindow* pWindow = GetWindow()->GetRawWindow();
+#if defined(TARGET_PLATFORM_NATIVE)
+    m_pImpl = std::make_unique<Private::InputSystemNative>(*this);
+#elif defined(TARGET_PLATFORM_WEB)
+    m_pImpl = std::make_unique<Private::InputSystemWeb>(*this);
+#endif
 
-    glfwSetKeyCallback(pWindow, [](GLFWwindow* pWindow, int key, int scancode, int action, int mods) {
-        GetInputSystem()->HandleKeyboardEvent(key, scancode, action, mods);
-    });
-
-    glfwSetMouseButtonCallback(pWindow, [](GLFWwindow* pWindow, int button, int action, int mods) {
-        GetInputSystem()->HandleMouseButtonEvent(button, action, mods);
-    });
-
-    glfwSetCursorPosCallback(pWindow, [](GLFWwindow* pWindow, double xPos, double yPos) {
-        GetInputSystem()->HandleMousePositionEvent(xPos, yPos);
-    });
-
-    glfwSetScrollCallback(pWindow, [](GLFWwindow* pWindow, double xOffset, double yOffset) {
-        GetInputSystem()->HandleMouseWheelEvent(xOffset, yOffset);
-    });
-
-    glfwSetCursorEnterCallback(pWindow, [](GLFWwindow* pWindow, int entered) {
-        GetInputSystem()->HandleCursorEnterEvent(entered == GLFW_TRUE);
-    });
-
-    // GLFW_CURSOR_DISABLED locks the cursor to the window, hides it and all cursor positions become
-    // virtual (unbounded by the window or monitor's resolution).
-    // This lets us have an in-game cursor which is consistent between Web and Native, and for the
-    // Web client it works in conjunction with `requestPointerLock` to ensure the client gets all
-    // mouse button events correctly.
-    glfwSetInputMode(pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    // If possible, get the positions based on the raw motion, which is not affected by OS-level
-    // settings regarding mouse acceleration.
-    if (glfwRawMouseMotionSupported())
-    {
-        glfwSetInputMode(pWindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-    }
+    m_pImpl->Initialize();
+    SetCursorMode(CursorMode::Normal);
 }
 
 void InputSystem::Update()
 {
-    if (IsCursorLocked())
+    m_pImpl->Update();
+
+    if (IsCursorLocked() && m_CursorPosition.has_value())
     {
-        ImGui::GetForegroundDrawList()->AddCircleFilled(m_CursorPosition, 4.0f, IM_COL32(255, 0, 0, 255));
+        ImGui::GetForegroundDrawList()->AddCircleFilled(m_CursorPosition.value(), 4.0f, IM_COL32(255, 0, 0, 255));
+    }
+}
+
+void InputSystem::SetCursorMode(CursorMode cursorMode)
+{
+    m_CursorMode = cursorMode;
+    
+    GLFWwindow* pWindow = GetWindow()->GetRawWindow();
+    if (cursorMode == CursorMode::Normal)
+    {
+        glfwSetInputMode(pWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+    else if (cursorMode == CursorMode::Locked)
+    {
+        // GLFW_CURSOR_DISABLED locks the cursor to the window, hides it and all cursor positions become
+        // virtual (unbounded by the window or monitor's resolution).
+        // This lets us have an in-game cursor which is consistent between Web and Native, and for the
+        // Web client it works in conjunction with `requestPointerLock` in the game's shell file.
+        glfwSetInputMode(pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 }
 
@@ -130,36 +120,31 @@ void InputSystem::HandleMouseButtonEvent(int button, int action, int mods)
     }
 }
 
-void InputSystem::HandleMousePositionEvent(double xPos, double yPos)
+// The expected mouse position should be between (0,0) and (windowWidth,windowHeight).
+// Mouse deltas are calculated from the previous position if available.
+// The mouse delta will be (0,0) if the mouse has just returned to the window.
+void InputSystem::HandleMousePositionEvent(const glm::vec2& position)
 {
-    if (!IsCursorLocked())
+    m_PreviousCursorPosition = m_CursorPosition;
+
+    m_CursorPosition = glm::vec2(
+        glm::clamp(position.x, 0.0f, static_cast<float>(GetWindow()->GetWidth())),
+        glm::clamp(position.y, 0.0f, static_cast<float>(GetWindow()->GetHeight())));
+
+    glm::vec2 cursorDelta(0.0f, 0.0f);
+    if (m_PreviousCursorPosition.has_value() && m_CursorPosition.has_value())
     {
-        return;
+        cursorDelta = m_CursorPosition.value() - m_PreviousCursorPosition.value();
     }
 
-#if defined(TARGET_PLATFORM_WEB)
-    // When the cursor is locked, on Web, we receive deltas rather than the expected position.
-    // A quirk of GLFW/Emscripten?
-    const glm::vec2 cursorDelta(xPos, yPos);
-    m_CursorPosition += cursorDelta;
-#else
-    if (!m_PreviousVirtualCursorPosition)
+    if (m_CursorPosition.has_value())
     {
-        m_PreviousVirtualCursorPosition = glm::vec2(xPos, yPos);
-    }
+        const glm::vec2& cursorPosition = m_CursorPosition.value();
 
-    const glm::vec2 currentVirtualCursorPosition(xPos, yPos);
-    const glm::vec2 cursorDelta = currentVirtualCursorPosition - m_PreviousVirtualCursorPosition.value();
-    m_CursorPosition += cursorDelta;
-    m_PreviousVirtualCursorPosition = currentVirtualCursorPosition;
-#endif
-
-    m_CursorPosition.x = glm::clamp(m_CursorPosition.x, 0.0f, static_cast<float>(GetWindow()->GetWidth()));
-    m_CursorPosition.y = glm::clamp(m_CursorPosition.y, 0.0f, static_cast<float>(GetWindow()->GetHeight()));
-
-    for (auto& callbackInfo : m_MousePositionCallbacks)
-    {
-        callbackInfo.callback(m_CursorPosition, cursorDelta);
+        for (auto& callbackInfo : m_MousePositionCallbacks)
+        {
+            callbackInfo.callback(cursorPosition, cursorDelta);
+        }
     }
 }
 
@@ -167,7 +152,11 @@ void InputSystem::HandleCursorEnterEvent(bool entered)
 {
     if (entered)
     {
-        m_PreviousVirtualCursorPosition.reset();
+        m_PreviousCursorPosition.reset();
+    }
+    else
+    {
+        m_CursorPosition.reset();
     }
 }
 
@@ -233,18 +222,7 @@ void InputSystem::RemoveMousePositionCallback(InputCallbackToken token)
 
 bool InputSystem::IsCursorLocked() const
 {
-#if defined(TARGET_PLATFORM_NATIVE)
-    return glfwGetWindowAttrib(GetWindow()->GetRawWindow(), GLFW_FOCUSED);
-#elif defined(TARGET_PLATFORM_WEB)
-    EmscriptenPointerlockChangeEvent pointerLockStatus;
-    if (emscripten_get_pointerlock_status(&pointerLockStatus) == EMSCRIPTEN_RESULT_SUCCESS)
-    {
-        return pointerLockStatus.isActive;
-    }
-    return false;
-#else
-    static_assert(false);
-#endif
+    return m_pImpl->IsCursorLocked();
 }
 
 } // namespace WingsOfSteel
