@@ -56,7 +56,10 @@ ImGuiSystem::~ImGuiSystem()
 }
 
 void ImGuiSystem::OnFrameStart()
-{
+{    
+    ImGui_ImplWGPU_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+
     // Override the cursor position with the one from the InputSystem.
     // This needs to happen before new frame, which is where the events are processed.
     const std::optional<glm::vec2> cursorPosition = GetInputSystem()->GetCursorPosition();
@@ -66,8 +69,6 @@ void ImGuiSystem::OnFrameStart()
         ImGui::GetIO().AddMousePosEvent(pos.x, pos.y);
     }
     
-    ImGui_ImplWGPU_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
 

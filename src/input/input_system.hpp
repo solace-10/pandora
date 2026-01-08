@@ -72,6 +72,7 @@ public:
     void HandleMouseWheelEvent(double xOffset, double yOffset);
     void HandleCursorEnterEvent(bool entered);
 
+    CursorMode GetCursorMode() const { return m_CursorMode; }
     void SetCursorMode(CursorMode cursorMode);
     const std::optional<glm::vec2> GetCursorPosition() const { return m_CursorPosition; }
 

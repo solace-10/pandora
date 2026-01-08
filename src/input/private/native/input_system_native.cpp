@@ -77,7 +77,7 @@ void InputSystemNative::Update()
 
 bool InputSystemNative::IsCursorLocked() const
 {
-    return glfwGetWindowAttrib(GetWindow()->GetRawWindow(), GLFW_FOCUSED);
+    return GetInputSystem()->GetCursorMode() == CursorMode::Locked &&  glfwGetWindowAttrib(GetWindow()->GetRawWindow(), GLFW_FOCUSED);
 }
 
 // When locked, we receive mouse positions as if we were in a window of infinite size.

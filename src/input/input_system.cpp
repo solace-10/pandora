@@ -70,10 +70,13 @@ void InputSystem::SetCursorMode(CursorMode cursorMode)
 
 void InputSystem::HandleMouseWheelEvent(double xOffset, double yOffset)
 {
+#if defined(TARGET_PLATFORM_NATIVE)
+    // There is an issue with the current version of ImGUI where web builds can spuriously set WantCaptureMouse/WantCaptureKeyboard, causing events to be lost.
     if (ImGui::GetIO().WantCaptureMouse)
     {
         return;
     }
+#endif
 
     const glm::vec2 offset(static_cast<float>(xOffset), static_cast<float>(yOffset));
     for (auto& callbackInfo : m_MouseWheelCallbacks)
@@ -84,10 +87,13 @@ void InputSystem::HandleMouseWheelEvent(double xOffset, double yOffset)
 
 void InputSystem::HandleKeyboardEvent(int key, int scancode, int action, int mods)
 {
+#if defined(TARGET_PLATFORM_NATIVE)
+    // There is an issue with the current version of ImGUI where web builds can spuriously set WantCaptureMouse/WantCaptureKeyboard, causing events to be lost.
     if (ImGui::GetIO().WantCaptureKeyboard)
     {
         return;
     }
+#endif
 
     for (auto& callbackInfo : m_KeyboardCallbacks)
     {
@@ -103,10 +109,13 @@ void InputSystem::HandleKeyboardEvent(int key, int scancode, int action, int mod
 
 void InputSystem::HandleMouseButtonEvent(int button, int action, int mods)
 {
+#if defined(TARGET_PLATFORM_NATIVE)
+    // There is an issue with the current version of ImGUI where web builds can spuriously set WantCaptureMouse/WantCaptureKeyboard, causing events to be lost.
     if (ImGui::GetIO().WantCaptureMouse)
     {
         return;
     }
+#endif
 
     for (auto& callbackInfo : m_MouseCallbacks)
     {
