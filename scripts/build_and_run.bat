@@ -1,4 +1,4 @@
-cmake --build ../../build/debug-windows --target setup_compile_commands game dome 
+cmake --build ../../build/debug-windows --target setup_compile_commands game
 if %errorlevel% equ 0 (
     echo Build successful, launching game...
     cd ..\..\game\bin

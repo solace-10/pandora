@@ -1,7 +1,7 @@
 #pragma once
 
-#include <list>
 #include <functional>
+#include <list>
 #include <string>
 
 #include <glm/mat4x4.hpp>

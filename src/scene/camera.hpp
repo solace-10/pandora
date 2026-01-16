@@ -3,8 +3,6 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
-#include "scene/entity.hpp"
-
 namespace WingsOfSteel
 {
 
@@ -33,6 +31,12 @@ public:
     // windowWidth/Height: current window dimensions
     // Returns: world space position at the specified depth (default 0.0f for near plane)
     glm::vec3 ScreenToWorld(const glm::vec2& mousePos, uint32_t windowWidth, uint32_t windowHeight, float depth = 0.0f) const;
+
+    // Convert world space coordinates to screen space coordinates
+    // worldPos: position in world space
+    // windowWidth/Height: current window dimensions
+    // Returns: screen coordinates (0,0 at top-left, width/height at bottom-right), z component contains depth in [0,1] range
+    glm::vec3 WorldToScreen(const glm::vec3& worldPos, uint32_t windowWidth, uint32_t windowHeight) const;
 
 private:
     void CalculateProjectionMatrix();
