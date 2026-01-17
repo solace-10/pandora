@@ -15,6 +15,7 @@ namespace WingsOfSteel
     using x##WeakPtr = std::weak_ptr<x>
 
 DECLARE_RESOURCE_TYPE(Resource);
+DECLARE_RESOURCE_TYPE(ResourceBitmapFont);
 DECLARE_RESOURCE_TYPE(ResourceDataStore);
 DECLARE_RESOURCE_TYPE(ResourceFont);
 DECLARE_RESOURCE_TYPE(ResourceModel);
@@ -38,11 +39,12 @@ using OnResourcesAvailableCallback = std::function<void(std::unordered_map<std::
 enum class ResourceType
 {
     Invalid = 0,
-    Shader,
-    Texture2D,
-    Model,
+    BitmapFont,
     DataStore,
-    Font
+    Font,
+    Model,
+    Shader,
+    Texture2D
 };
 
 } // namespace WingsOfSteel

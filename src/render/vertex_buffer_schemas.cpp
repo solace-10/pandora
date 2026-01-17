@@ -12,16 +12,12 @@ VertexBufferSchemas::VertexBufferSchemas()
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 0,
-                .shaderLocation = 0
-            }
-        );
+                .shaderLocation = 0 });
         schema.attributes.push_back( // Color
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 3 * sizeof(float),
-                .shaderLocation = 1
-            }
-        );
+                .shaderLocation = 1 });
 
         schema.layout = {
             .arrayStride = sizeof(VertexP3C3),
@@ -37,23 +33,17 @@ VertexBufferSchemas::VertexBufferSchemas()
             {
                 .format = wgpu::VertexFormat::Float32x2,
                 .offset = 0,
-                .shaderLocation = 0
-            }
-        );
+                .shaderLocation = 0 });
         schema.attributes.push_back( // Color
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 2 * sizeof(float),
-                .shaderLocation = 1
-            }
-        );
+                .shaderLocation = 1 });
         schema.attributes.push_back( // UV
             {
                 .format = wgpu::VertexFormat::Float32x2,
                 .offset = 5 * sizeof(float),
-                .shaderLocation = 2
-            }
-        );
+                .shaderLocation = 2 });
 
         schema.layout = {
             .arrayStride = sizeof(VertexP2C3UV),
@@ -69,23 +59,17 @@ VertexBufferSchemas::VertexBufferSchemas()
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 0,
-                .shaderLocation = 0
-            }
-        );
+                .shaderLocation = 0 });
         schema.attributes.push_back( // Color
             {
                 .format = wgpu::VertexFormat::Float32x4,
                 .offset = 3 * sizeof(float),
-                .shaderLocation = 1
-            }
-        );
+                .shaderLocation = 1 });
         schema.attributes.push_back( // UV
             {
                 .format = wgpu::VertexFormat::Float32x2,
                 .offset = 7 * sizeof(float),
-                .shaderLocation = 2
-            }
-        );
+                .shaderLocation = 2 });
 
         schema.layout = {
             .arrayStride = sizeof(VertexP3C4UV),
@@ -101,26 +85,67 @@ VertexBufferSchemas::VertexBufferSchemas()
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 0,
-                .shaderLocation = 0
-            }
-        );
+                .shaderLocation = 0 });
         schema.attributes.push_back( // Color
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 3 * sizeof(float),
-                .shaderLocation = 1
-            }
-        );
+                .shaderLocation = 1 });
         schema.attributes.push_back( // Normal
             {
                 .format = wgpu::VertexFormat::Float32x3,
                 .offset = 6 * sizeof(float),
-                .shaderLocation = 2
-            }
-        );
+                .shaderLocation = 2 });
 
         schema.layout = {
             .arrayStride = sizeof(VertexP3C3N3),
+            .stepMode = wgpu::VertexStepMode::Vertex,
+            .attributeCount = schema.attributes.size(),
+            .attributes = schema.attributes.data()
+        };
+    }
+
+    {
+        Schema& schema = GetSchema(VertexFormat::VERTEX_FORMAT_P3_B3);
+        schema.attributes.push_back( // Position
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 0,
+                .shaderLocation = 0 });
+        schema.attributes.push_back( // Barycentric
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 3 * sizeof(float),
+                .shaderLocation = 1 });
+
+        schema.layout = {
+            .arrayStride = sizeof(VertexP3B3),
+            .stepMode = wgpu::VertexStepMode::Vertex,
+            .attributeCount = schema.attributes.size(),
+            .attributes = schema.attributes.data()
+        };
+    }
+
+    {
+        Schema& schema = GetSchema(VertexFormat::VERTEX_FORMAT_P3_N3_UV);
+        schema.attributes.push_back( // Position
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 0,
+                .shaderLocation = 0 });
+        schema.attributes.push_back( // Normal
+            {
+                .format = wgpu::VertexFormat::Float32x3,
+                .offset = 3 * sizeof(float),
+                .shaderLocation = 1 });
+        schema.attributes.push_back( // UV
+            {
+                .format = wgpu::VertexFormat::Float32x2,
+                .offset = 6 * sizeof(float),
+                .shaderLocation = 2 });
+
+        schema.layout = {
+            .arrayStride = sizeof(VertexP3N3UV),
             .stepMode = wgpu::VertexStepMode::Vertex,
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()

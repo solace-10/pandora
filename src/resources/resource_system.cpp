@@ -2,6 +2,7 @@
 
 #include "core/log.hpp"
 #include "resources/resource.hpp"
+#include "resources/resource_bitmap_font.hpp"
 #include "resources/resource_data_store.hpp"
 #include "resources/resource_font.hpp"
 #include "resources/resource_model.hpp"
@@ -13,6 +14,7 @@ namespace WingsOfSteel
 
 ResourceSystem::ResourceSystem()
 {
+    RegisterResource<ResourceBitmapFont>("fnt");
     RegisterResource<ResourceDataStore>("json");
     RegisterResource<ResourceFont>("ttf");
     RegisterResource<ResourceModel>("glb");
@@ -39,7 +41,7 @@ void ResourceSystem::Update()
         {
             Log::Info() << "Loaded resource '" << pPendingResource.pResource->GetPath() << "'.";
             pPendingResource.onResourceAvailable(pPendingResource.pResource);
-            
+
             // We mark the pending resource as handled, so we can remove it from the list later.
             // It is necessary to do it this way rather than later checking if the resource is loaded, as
             // it is possible for the onResourceAvailable() callback to add new entries to m_PendingResources,
