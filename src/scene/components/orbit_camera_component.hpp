@@ -15,8 +15,8 @@ DECLARE_SMART_PTR(Entity);
 class OrbitCameraComponent : public IComponent
 {
 public:
-    OrbitCameraComponent() {}
-    ~OrbitCameraComponent() {}
+    OrbitCameraComponent() = default;
+    ~OrbitCameraComponent() = default;
 
     float distance{ 10.0f };
     float wantedDistance{ 10.0f };
@@ -34,6 +34,12 @@ public:
     glm::vec3 anchorPosition{ 0.0f };
     glm::vec3 wantedAnchorPosition{ 0.0f };
     glm::vec3 anchorPositionVelocity{ 0.0f };
+    float orbitAngleDamping{ 0.15f };
+    float pitchDamping{ 0.15f };
+    float distanceDamping{ 0.3f };
+    float focusRadius{ 0.001f };
+    float sensitivity{ 3.0f };
+    float zoomSensitivity{ 0.5f };
 
     void Deserialize(const ResourceDataStore* pContext, const Json::Data& json) override {}
 };
