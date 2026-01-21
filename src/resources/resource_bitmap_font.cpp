@@ -197,8 +197,14 @@ void ResourceBitmapFont::OnTextureLoaded(ResourceSharedPtr pResource)
 }
 
 std::vector<VertexP2C4UV> ResourceBitmapFont::Generate(const std::string& text, const glm::vec4& color) const
-{
+{    
     std::vector<VertexP2C4UV> vertices;
+    if (m_Glyphs.empty())
+    {
+        Log::Error() << "Trying to generate text for a bitmap font before it has finished loading, or font has no glyphs.";
+        return vertices;
+    }
+
     vertices.reserve(text.size() * 6); // 6 vertices per character (2 triangles)
 
     float cursorX = 0.0f;

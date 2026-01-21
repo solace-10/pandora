@@ -80,14 +80,21 @@ if (TARGET_PLATFORM_NATIVE)
 elseif(TARGET_PLATFORM_WEB)
     # Generate manifest.json before building for web.
     # This is called every time, with Forge regenerating the manifest as necessary.
+
+    if(WIN32)
+        set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe")
+    else()
+        set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge")
+    endif()
+    
     add_custom_target(forge_generate_manifest
-        COMMAND ${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe manifest
+        COMMAND ${FORGE_EXECUTABLE} manifest
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         COMMENT "Generating manifest.json for web build..."
     )
 
     add_custom_target(forge_upload
-        COMMAND ${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe upload
+        COMMAND ${FORGE_EXECUTABLE} upload
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         COMMENT "Uploading files for web build..."
     )
