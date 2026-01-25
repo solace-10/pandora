@@ -4,9 +4,11 @@
 
 # Pandora
 
-A C++20 game engine framework built on WebGPU, supporting both native (Windows, Linux) and web (Emscripten) platforms.
+> [!WARNING]
+> Please note that this engine is used for the development of personal projects and not intended for general use.
 
-Please note that this engine is used for the development of personal projects and not intended for general use.
+
+A C++20 game engine framework built on WebGPU, supporting both native (Windows, Linux) and web (Emscripten) targets.
 
 ## Features
 
@@ -35,4 +37,4 @@ Please note that this engine is used for the development of personal projects an
 
 ## License
 
-GPL-3.0
+*Pandora* is licensed under the GPLv3 License, see [LICENSE](LICENSE) for more information.
