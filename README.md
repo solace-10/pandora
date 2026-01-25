@@ -1,3 +1,7 @@
+<div align="center">
+<img src=".assets/screenshot.jpg"/>
+</div>
+
 # Pandora
 
 A C++20 game engine framework built on WebGPU, supporting both native (Windows, Linux) and web (Emscripten) platforms.
