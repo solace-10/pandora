@@ -68,27 +68,38 @@ glm::vec3 Camera::ScreenToWorld(const glm::vec2& mousePos, uint32_t windowWidth,
     // Create a point in clip space at the specified depth
     const glm::vec4 clipCoords(x, y, depth, 1.0f);
 
-    // Get the inverse of the view-projection matrix
-    const glm::mat4 viewProj = m_ProjectionMatrix * m_ViewMatrix;
+    // Use camera-relative matrices for precision (see WorldToScreen for details).
+    glm::mat4 viewRotation = m_ViewMatrix;
+    viewRotation[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    const glm::mat4 viewProj = m_ProjectionMatrix * viewRotation;
     const glm::mat4 invViewProj = glm::inverse(viewProj);
 
-    // Transform from clip space to world space
-    glm::vec4 worldCoords = invViewProj * clipCoords;
+    // Transform from clip space to camera-relative world space
+    glm::vec4 relativeCoords = invViewProj * clipCoords;
 
     // Perform perspective division
-    if (worldCoords.w != 0.0f)
+    if (relativeCoords.w != 0.0f)
     {
-        worldCoords /= worldCoords.w;
+        relativeCoords /= relativeCoords.w;
     }
 
-    return glm::vec3(worldCoords);
+    // Add camera position back to get world space
+    return glm::vec3(relativeCoords) + m_CameraPosition;
 }
 
 glm::vec3 Camera::WorldToScreen(const glm::vec3& worldPos, uint32_t windowWidth, uint32_t windowHeight) const
 {
-    // Transform world position to clip space
-    const glm::mat4 viewProj = m_ProjectionMatrix * m_ViewMatrix;
-    const glm::vec4 clipCoords = viewProj * glm::vec4(worldPos, 1.0f);
+    // Use camera-relative position to avoid float precision issues with large world coordinates.
+    // The view matrix bakes camera translation into dot products, causing catastrophic cancellation
+    // when world positions are large (e.g. geosynchronous orbit at ~42,000 km).
+    // By subtracting the camera position first, all values stay small and well-conditioned.
+    const glm::vec3 relativePos = worldPos - m_CameraPosition;
+    glm::mat4 viewRotation = m_ViewMatrix;
+    viewRotation[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    const glm::mat4 viewProj = m_ProjectionMatrix * viewRotation;
+    const glm::vec4 clipCoords = viewProj * glm::vec4(relativePos, 1.0f);
 
     // Perform perspective division to get normalized device coordinates
     glm::vec3 ndc;
