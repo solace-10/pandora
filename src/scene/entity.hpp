@@ -11,6 +11,7 @@ namespace WingsOfSteel
 DECLARE_SMART_PTR(Scene);
 
 using EntityHandle = entt::entity;
+static constexpr EntityHandle NullEntityHandle{ entt::null };
 
 DECLARE_SMART_PTR(Entity);
 class Entity
@@ -51,6 +52,8 @@ public:
     
     EntityWeakPtr GetParent() { return m_pParentEntity; }
     void SetParent(EntityWeakPtr pParent) { m_pParentEntity = pParent; }
+
+    EntityHandle GetEntityHandle() const { return m_EntityHandle; }
 
     virtual void OnAddedToScene();
     virtual void OnRemovedFromScene();
