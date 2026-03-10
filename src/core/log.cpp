@@ -16,6 +16,8 @@
 // along with Genesis. If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
+#include <chrono>
+#include <iomanip>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -110,6 +112,16 @@ const std::string& ILogTarget::GetPrefix(Log::Level level)
     return prefixes[static_cast<size_t>(level)];
 }
 
+std::string ILogTarget::GetTimestamp()
+{
+    auto now = std::chrono::system_clock::now();
+    auto timeT = std::chrono::system_clock::to_time_t(now);
+    std::tm tm = *std::localtime(&timeT);
+    std::ostringstream oss;
+    oss << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] ";
+    return oss.str();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // StdOutLogger
 // Prints the message to std::out.
@@ -117,7 +129,7 @@ const std::string& ILogTarget::GetPrefix(Log::Level level)
 
 void StdOutLogger::Log(const std::string& text, Log::Level type)
 {
-    std::cout << GetPrefix(type) << text << std::endl;
+    std::cout << GetTimestamp() << GetPrefix(type) << text << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -142,7 +154,7 @@ void FileLogger::Log(const std::string& text, Log::Level type)
 {
     if (m_File.is_open())
     {
-        m_File << GetPrefix(type) << text << std::endl;
+        m_File << GetTimestamp() << GetPrefix(type) << text << std::endl;
         m_File.flush();
     }
 }

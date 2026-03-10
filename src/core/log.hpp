@@ -103,6 +103,7 @@ public:
 
 protected:
     static const std::string& GetPrefix(Log::Level level);
+    static std::string GetTimestamp();
 };
 
 //////////////////////////////////////////////////////////////////////////
