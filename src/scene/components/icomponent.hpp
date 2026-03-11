@@ -14,7 +14,7 @@ class IComponent
 public:
     virtual ~IComponent() = default;
 
-    virtual void Deserialize(const ResourceDataStore* pContext, const Json::Data& json) = 0;
+    virtual void Deserialize(const ResourceDataStore* pContext, const Json::Data& json) {}
 };
 
 } // namespace WingsOfSteel
