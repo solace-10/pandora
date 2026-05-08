@@ -1,6 +1,7 @@
 #include "render/rendersystem.hpp"
 
 #include <cassert>
+#include <string_view>
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -166,55 +167,47 @@ void RenderSystem::AcquireDevice(void (*callback)(wgpu::Device))
 
     g_Instance.RequestAdapter(
         &adapterOptions,
-        // TODO(https://bugs.chromium.org/p/dawn/issues/detail?id=1892): Use
-        // wgpu::RequestAdapterStatus, wgpu::Adapter, and wgpu::Device.
-        [](WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* userdata) {
-            if (status != WGPURequestAdapterStatus_Success)
+        wgpu::CallbackMode::AllowSpontaneous,
+        [callback](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
+            if (status != wgpu::RequestAdapterStatus::Success)
             {
-                Log::Error() << "Failed to request adapter, error code " << status;
+                Log::Error() << "Failed to request adapter: " << std::string_view(message.data, message.length);
                 exit(-1);
             }
 
-            g_Adapter = wgpu::Adapter::Acquire(adapter);
+            g_Adapter = std::move(adapter);
             Log::Info() << "Adapter successfully requested.";
 
-            wgpu::AdapterProperties properties{};
-            g_Adapter.GetProperties(&properties);
+            wgpu::AdapterInfo info{};
+            g_Adapter.GetInfo(&info);
 
             Log::Info() << "Adapter properties:";
-            if (properties.vendorName)
-            {
-                Log::Info() << " - Vendor name: " << properties.vendorName;
-            }
-            if (properties.architecture)
-            {
-                Log::Info() << " - Architecture: " << properties.architecture;
-            }
-            if (properties.name)
-            {
-                Log::Info() << " - Name: " << properties.name;
-            }
-            if (properties.driverDescription)
-            {
-                Log::Info() << " - Driver: " << properties.driverDescription;
-            }
-            Log::Info() << " - Backend type: " << magic_enum::enum_name(properties.backendType);
+            Log::Info() << " - Vendor: " << std::string_view(info.vendor.data, info.vendor.length);
+            Log::Info() << " - Architecture: " << std::string_view(info.architecture.data, info.architecture.length);
+            Log::Info() << " - Device: " << std::string_view(info.device.data, info.device.length);
+            Log::Info() << " - Description: " << std::string_view(info.description.data, info.description.length);
+            Log::Info() << " - Backend type: " << magic_enum::enum_name(info.backendType);
+
+            wgpu::DeviceDescriptor deviceDescriptor{};
+            deviceDescriptor.SetUncapturedErrorCallback(
+                [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
+                    Log::Error() << "Uncaptured device error: " << magic_enum::enum_name(type)
+                                 << " - message: " << std::string_view(message.data, message.length);
+                    exit(-1);
+                });
 
             g_Adapter.RequestDevice(
-                nullptr,
-                [](WGPURequestDeviceStatus status, WGPUDevice cDevice, const char* message, void* userdata) {
-                    wgpu::Device device = wgpu::Device::Acquire(cDevice);
-                    device.SetUncapturedErrorCallback(
-                        [](WGPUErrorType type, const char* message, void* userdata) {
-                            Log::Error() << "Uncaptured device error: " << type << " - message: " << message;
-                            exit(-1);
-                        },
-                        nullptr);
-                    reinterpret_cast<void (*)(wgpu::Device)>(userdata)(device);
-                },
-                userdata);
-        },
-        reinterpret_cast<void*>(callback));
+                &deviceDescriptor,
+                wgpu::CallbackMode::AllowSpontaneous,
+                [callback](wgpu::RequestDeviceStatus status, wgpu::Device device, wgpu::StringView message) {
+                    if (status != wgpu::RequestDeviceStatus::Success)
+                    {
+                        Log::Error() << "Failed to request device: " << std::string_view(message.data, message.length);
+                        exit(-1);
+                    }
+                    callback(std::move(device));
+                });
+        });
 }
 
 void RenderSystem::CreateGlobalUniforms()

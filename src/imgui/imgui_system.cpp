@@ -34,7 +34,7 @@ ImGuiSystem::ImGuiSystem()
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOther(GetWindow()->GetRawWindow(), true);
 #if defined(TARGET_PLATFORM_WEB)
-    ImGui_ImplGlfw_InstallEmscriptenCanvasResizeCallback("#canvas");
+    ImGui_ImplGlfw_InstallEmscriptenCallbacks(GetWindow()->GetRawWindow(), "#canvas");
     ImGui::GetIO().IniFilename = nullptr; // Disable ini files when targetting web, as we don't support writing temporary files.
 #endif
     ImGui_ImplWGPU_InitInfo init_info;

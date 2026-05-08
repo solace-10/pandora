@@ -881,7 +881,7 @@ wgpu::VertexFormat ResourceModel::GetVertexFormat(const tinygltf::Accessor* pAcc
     }
 
     Log::Error() << "Unknown vertex format being requested, component type: " << pAccessor->componentType << ", number of components: " << numberOfComponents;
-    return wgpu::VertexFormat::Undefined;
+    return wgpu::VertexFormat{};
 }
 
 wgpu::IndexFormat ResourceModel::GetIndexFormat(const tinygltf::Accessor* pAccessor) const

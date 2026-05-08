@@ -110,12 +110,12 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, Color
 
         m_Texture = GetRenderSystem()->GetDevice().CreateTexture(&textureDescriptor);
 
-        wgpu::ImageCopyTexture destination{
+        wgpu::TexelCopyTextureInfo destination{
             .texture = m_Texture,
             .aspect = wgpu::TextureAspect::All
         };
 
-        wgpu::TextureDataLayout sourceLayout{
+        wgpu::TexelCopyBufferLayout sourceLayout{
             .offset = 0,
             .bytesPerRow = m_Channels * m_Width,
             .rowsPerImage = m_Height
@@ -161,12 +161,12 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, Col
 
     m_Texture = GetRenderSystem()->GetDevice().CreateTexture(&textureDescriptor);
 
-    wgpu::ImageCopyTexture destination{
+    wgpu::TexelCopyTextureInfo destination{
         .texture = m_Texture,
         .aspect = wgpu::TextureAspect::All
     };
 
-    wgpu::TextureDataLayout sourceLayout{
+    wgpu::TexelCopyBufferLayout sourceLayout{
         .offset = 0,
         .bytesPerRow = m_Channels * m_Width,
         .rowsPerImage = m_Height

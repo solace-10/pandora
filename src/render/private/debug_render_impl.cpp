@@ -89,12 +89,12 @@ dd::GlyphTextureHandle DebugRenderImpl::createGlyphTexture(int width, int height
     };
     m_GlyphTexture = GetRenderSystem()->GetDevice().CreateTexture(&textureDesc);
 
-    wgpu::ImageCopyTexture destination{
+    wgpu::TexelCopyTextureInfo destination{
         .texture = m_GlyphTexture,
         .origin = { 0, 0, 0 }
     };
 
-    wgpu::TextureDataLayout source{
+    wgpu::TexelCopyBufferLayout source{
         .bytesPerRow = static_cast<uint32_t>(width),
         .rowsPerImage = static_cast<uint32_t>(height)
     };

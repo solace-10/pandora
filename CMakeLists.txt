@@ -56,6 +56,7 @@ target_compile_definitions(pandora PUBLIC
     IMGUI_ENABLE_FREETYPE
     IMGUI_USER_CONFIG="imgui/imgui_config.hpp"
     IMGUI_DEFINE_MATH_OPERATORS
+    IMGUI_IMPL_WEBGPU_BACKEND_DAWN
 )
 
 target_link_libraries(pandora PUBLIC 
@@ -105,6 +106,7 @@ elseif(TARGET_PLATFORM_WEB)
     target_compile_options(pandora PUBLIC
         "--use-port=bullet"
         "--use-port=contrib.glfw3"
+        "--use-port=emdawnwebgpu"
     )
 
 
@@ -136,13 +138,13 @@ elseif(TARGET_PLATFORM_WEB)
     target_compile_options(pandora PUBLIC
         "-msimd128"
     )
-    target_link_options(pandora PUBLIC 
+    target_link_options(pandora PUBLIC
         "-sDEFAULT_TO_CXX"
         "-sENVIRONMENT=web" # Removes Node.js support
         "--use-port=bullet"
         "--use-port=contrib.glfw3"
-        "-sUSE_WEBGPU=1" 
-        "-sFETCH" 
+        "--use-port=emdawnwebgpu"
+        "-sFETCH"
         "-sALLOW_MEMORY_GROWTH"
         "-sNO_EXIT_RUNTIME=1"
         "-sSTACK_SIZE=5MB"

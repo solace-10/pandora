@@ -117,7 +117,7 @@ void ShaderEditor::DrawShaderList()
     const int shaderListWidth = 250;
     const int compileButtonHeight = 32;
     ImGui::BeginGroup();
-    ImGui::BeginChild("ShaderList", ImVec2(shaderListWidth, ImGui::GetContentRegionAvail().y - compileButtonHeight - ImGui::GetStyle().ItemSpacing.y), ImGuiChildFlags_Border);
+    ImGui::BeginChild("ShaderList", ImVec2(shaderListWidth, ImGui::GetContentRegionAvail().y - compileButtonHeight - ImGui::GetStyle().ItemSpacing.y), ImGuiChildFlags_Borders);
 
     for (auto& entry : m_Shaders)
     {

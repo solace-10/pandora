@@ -114,7 +114,7 @@ void Window::ConfigureSurface()
 #if defined(TARGET_PLATFORM_NATIVE)
         m_Surface = wgpu::glfw::CreateSurfaceForWindow(GetRenderSystem()->GetInstance(), m_pWindow);
 #elif defined(TARGET_PLATFORM_WEB)
-        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
+        wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc{};
         canvasDesc.selector = "#canvas";
         wgpu::SurfaceDescriptor surfaceDesc{ .nextInChain = &canvasDesc };
         m_Surface = GetRenderSystem()->GetInstance().CreateSurface(&surfaceDesc);
