@@ -5,6 +5,7 @@
 #define DEBUG_DRAW_IMPLEMENTATION
 #include <debug_draw.hpp>
 
+#include "core/log.hpp"
 #include "pandora.hpp"
 #include "render/rendersystem.hpp"
 #include "render/window.hpp"
@@ -12,6 +13,18 @@
 
 namespace WingsOfSteel::Private
 {
+
+// Referenced by the DEBUG_DRAW_OVERFLOWED macro (see debug_render_impl.hpp). The macro fires
+// once per dropped primitive, which can be hundreds of thousands of times per frame once a
+// debug queue overflows, so we throttle hard to avoid flooding the log/console.
+void DebugDrawOverflowHandler(const char* pMessage)
+{
+    static uint64_t s_count = 0;
+    if ((s_count++ % 100000) == 0)
+    {
+        Log::Warning() << "[DebugDraw] " << pMessage << " (further overflow messages throttled)";
+    }
+}
 
 DebugRenderImpl::DebugRenderImpl()
 {
@@ -38,6 +51,7 @@ void DebugRenderImpl::Initialize()
         .size = DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(LineData)
     };
     m_LineVertexBuffer = pDevice.CreateBuffer(&linesBufferDescriptor);
+    m_LineVertexBufferSize = DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(LineData);
     m_LineData.reserve(DEBUG_DRAW_VERTEX_BUFFER_SIZE);
 
     GetResourceSystem()->RequestResource("/shaders/debug_render_glyph.wgsl", [this](ResourceSharedPtr pResource) {
@@ -59,11 +73,28 @@ void DebugRenderImpl::Render(wgpu::RenderPassEncoder& renderPass)
     m_LineData.clear();
     m_GlyphData.clear();
 
-    // flush() will populate the vertex data.
+    // flush() will populate the vertex data, appending one drawLineList/drawGlyphList batch at
+    // a time (each batch is capped at DEBUG_DRAW_VERTEX_BUFFER_SIZE vertices by the library).
     dd::flush();
 
     if (m_LineRenderPipeline && !m_LineData.empty())
     {
+        // dd::flush() can produce far more than one buffer's worth of lines (e.g. a heightfield
+        // wireframe), so grow the GPU buffer to fit the whole frame and upload it in one go.
+        const uint64_t requiredSize = static_cast<uint64_t>(m_LineData.size()) * sizeof(LineData);
+        if (requiredSize > m_LineVertexBufferSize)
+        {
+            wgpu::BufferDescriptor lineBufferDescriptor{
+                .label = "Debug render vertex buffer (lines)",
+                .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex,
+                .size = requiredSize
+            };
+            m_LineVertexBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&lineBufferDescriptor);
+            m_LineVertexBufferSize = requiredSize;
+        }
+
+        GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_LineVertexBuffer, 0, m_LineData.data(), requiredSize);
+
         renderPass.SetPipeline(m_LineRenderPipeline);
         renderPass.SetVertexBuffer(0, m_LineVertexBuffer);
         renderPass.Draw(m_LineData.size());
@@ -252,15 +283,17 @@ void DebugRenderImpl::drawPointList(const dd::DrawVertex* points, int count, boo
 
 void DebugRenderImpl::drawLineList(const dd::DrawVertex* lines, int count, bool depthEnabled)
 {
-    m_LineData.resize(count);
+    // Append this batch; dd::flush() may call us several times per frame. The accumulated data
+    // is uploaded and drawn once, back in Render().
+    const size_t base = m_LineData.size();
+    m_LineData.resize(base + count);
     for (int i = 0; i < count; i++)
     {
-        LineData& lineData = m_LineData[i];
+        LineData& lineData = m_LineData[base + i];
         const auto& line = lines[i].line;
         lineData.position = glm::vec3(line.x, line.y, line.z);
         lineData.color = glm::vec3(line.r, line.g, line.b);
     }
-    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_LineVertexBuffer, 0, m_LineData.data(), m_LineData.size() * sizeof(LineData));
 }
 
 void DebugRenderImpl::drawGlyphList(const dd::DrawVertex* glyphs, int count, dd::GlyphTextureHandle glyphTex)

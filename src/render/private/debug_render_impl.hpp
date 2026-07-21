@@ -1,11 +1,29 @@
 #pragma once
 
+#include <cstdint>
+
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 using ddVec3 = glm::vec3;
 using ddVec3_In = const glm::vec3&;
 using ddVec3_Out = glm::vec3&;
+
+// Debug-draw configuration. These MUST be defined before the first include of debug_draw.hpp:
+// the library resolves its DEBUG_DRAW_MAX_* / DEBUG_DRAW_OVERFLOWED defaults inside its
+// declaration include guard, so this is the earliest (and only) point they can be overridden.
+//
+// A physics wireframe of the heightfield emits (Width * Length * 2) triangles * 3 edges of
+// lines every frame (~240k lines for the default 200x200 landscape), far exceeding the
+// library's default 32768-line queue. This is a development-only debug view, so we trade
+// memory (~25 MB for the line queue) for the ability to draw the whole collision mesh at once.
+#define DEBUG_DRAW_MAX_LINES 524288
+
+// Route queue overflow through a throttled log instead of the library default (fprintf to
+// stderr, which fires once per dropped primitive — hundreds of thousands of times per frame —
+// and floods/hangs the browser console on web). Definition lives in debug_render_impl.cpp.
+namespace WingsOfSteel::Private { void DebugDrawOverflowHandler(const char* pMessage); }
+#define DEBUG_DRAW_OVERFLOWED(message) ::WingsOfSteel::Private::DebugDrawOverflowHandler(message)
 
 #include <debug_draw.hpp>
 
@@ -39,6 +57,7 @@ private:
     void CreateGlyphRenderPipeline();
 
     wgpu::Buffer m_LineVertexBuffer;
+    uint64_t m_LineVertexBufferSize{ 0 }; // Capacity of m_LineVertexBuffer in bytes; grown on demand.
     wgpu::RenderPipeline m_LineRenderPipeline;
     ResourceShaderSharedPtr m_pUntexturedShader;
 
