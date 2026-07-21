@@ -77,6 +77,10 @@ public:
 
     void Deserialize(const ResourceDataStore* pContext, const Json::Data& jsonData) override;
 
+    // Builds a static (mass 0) rigid body from a programmatically created collision shape,
+    // for content that isn't loaded from a prefab (e.g. the procedurally generated landscape).
+    void CreateStatic(CollisionShapeSharedPtr pShape, const glm::mat4x4& worldTransform);
+
     void SetOwner(EntitySharedPtr pOwner);
     EntityWeakPtr GetOwner() { return m_pOwner; }
     

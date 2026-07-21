@@ -60,7 +60,7 @@ void LandscapeRenderSystem::Update(float delta)
 void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscapeComponent)
 {
     const uint32_t landscapeSize = landscapeComponent.Width;
-    constexpr float cellSize = 10.0f;
+    const float cellSize = landscapeComponent.CellSize;
     const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
     const float maxHeight = landscapeComponent.Height;

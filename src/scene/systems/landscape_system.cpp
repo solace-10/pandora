@@ -1,11 +1,17 @@
 #include "scene/systems/landscape_system.hpp"
 
+#include <vector>
+
 #include <FastNoiseLite.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "imgui.h"
 #include "imgui/imgui.hpp"
+#include "physics/collision_shape.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
+#include "scene/components/rigid_body_component.hpp"
 #include "scene/scene.hpp"
 
 namespace WingsOfSteel
@@ -63,6 +69,55 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
     landscapeComponent.Generation++;
 
     GenerateDebugHeightmapTexture(landscapeComponent);
+
+    if (EntitySharedPtr pLandscapeEntity = m_pLandscapeEntity.lock())
+    {
+        BuildPhysics(pLandscapeEntity, landscapeComponent);
+    }
+}
+
+void LandscapeSystem::BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent)
+{
+    // Build a physics heightfield that matches the visual mesh exactly. This mirrors the
+    // vertex generation in LandscapeRenderSystem::GenerateGeometry: a (Width+1) x (Length+1)
+    // grid of points, sampling the same clamped heights and using the same shared CellSize.
+    const uint32_t gridWidth = landscapeComponent.Width + 1;
+    const uint32_t gridLength = landscapeComponent.Length + 1;
+    const float maxHeight = landscapeComponent.Height;
+    const float waterLevel = landscapeComponent.WaterLevel;
+
+    auto getHeight = [&landscapeComponent, maxHeight, waterLevel](int x, int z) -> float {
+        x = glm::clamp(x, 0, static_cast<int>(landscapeComponent.Width) - 1);
+        z = glm::clamp(z, 0, static_cast<int>(landscapeComponent.Length) - 1);
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - waterLevel;
+    };
+
+    // Row-major, x fastest, to match btHeightfieldTerrainShape's expected data layout.
+    std::vector<float> heights;
+    heights.reserve(static_cast<size_t>(gridWidth) * gridLength);
+    for (uint32_t z = 0; z < gridLength; ++z)
+    {
+        for (uint32_t x = 0; x < gridWidth; ++x)
+        {
+            heights.push_back(getHeight(static_cast<int>(x), static_cast<int>(z)));
+        }
+    }
+
+    auto pShape = std::make_shared<CollisionShapeHeightfield>(gridWidth, gridLength, std::move(heights), landscapeComponent.CellSize);
+
+    // Bullet centres the heightfield vertically; lift the body so the raw heights line up with
+    // the rendered mesh (which places vertices at their world-space height directly).
+    const glm::mat4x4 worldTransform = glm::translate(glm::mat4x4(1.0f), glm::vec3(0.0f, pShape->GetVerticalOffset(), 0.0f));
+
+    // Rebuild from scratch on regeneration so the previous body is removed from the world.
+    if (pLandscapeEntity->HasComponent<RigidBodyComponent>())
+    {
+        pLandscapeEntity->RemoveComponent<RigidBodyComponent>();
+    }
+
+    RigidBodyComponent& rigidBodyComponent = pLandscapeEntity->AddComponent<RigidBodyComponent>();
+    rigidBodyComponent.CreateStatic(pShape, worldTransform);
+    rigidBodyComponent.SetOwner(pLandscapeEntity);
 }
 
 void LandscapeSystem::GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent)

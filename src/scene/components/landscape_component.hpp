@@ -22,7 +22,7 @@ public:
     uint32_t Length{ 32 };
     float Height{ 40.0f }; // Maximum height the landscape will be generated to, in meters.
     float WaterLevel{ 10.0f };
-    float CellSize{ 1.0f }; // Cell size, in meters.
+    float CellSize{ 10.0f }; // Cell size, in meters. Shared by the visual mesh and the physics heightfield.
     uint32_t Generation{ 0 }; // Current generation iteration; used by the renderer to know when the component is stale.
     uint32_t Octaves{ 4 };
     float Frequency{ 0.002 };

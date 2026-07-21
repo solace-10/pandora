@@ -35,6 +35,15 @@ void RigidBodyComponent::Deserialize(const ResourceDataStore* pContext, const Js
     });
 }
 
+void RigidBodyComponent::CreateStatic(CollisionShapeSharedPtr pShape, const glm::mat4x4& worldTransform)
+{
+    m_pShape = pShape;
+    m_MotionType = MotionType::Static;
+    m_Mass = 0;
+    m_WorldTransform = worldTransform;
+    BuildRigidBody();
+}
+
 void RigidBodyComponent::BuildRigidBody()
 {
     if (!m_pShape)

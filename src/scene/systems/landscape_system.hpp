@@ -26,6 +26,7 @@ public:
 private:
     void GenerateInternal(LandscapeComponent& landscapeComponent);
     void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
+    void BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent);
     EntityWeakPtr m_pLandscapeEntity;
 };
 

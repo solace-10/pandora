@@ -35,7 +35,8 @@ public:
         Compound,
         Sphere,
         ConvexHull,
-        Cylinder
+        Cylinder,
+        Heightfield
     };
 
     virtual Type GetType() const = 0;
@@ -133,6 +134,33 @@ public:
     CollisionShapeCylinder(Axis axis, float width, float height, float depth);
 
     virtual Type GetType() const override { return Type::Cylinder; }
+};
+
+/////////////////////////////////////////////////////////////////////
+// CollisionShapeHeightfield
+/////////////////////////////////////////////////////////////////////
+
+DECLARE_SMART_PTR(CollisionShapeHeightfield);
+class CollisionShapeHeightfield : public CollisionShape
+{
+public:
+    // Builds a btHeightfieldTerrainShape from a row-major grid of heights (x fastest,
+    // width * length values). cellSize is the horizontal spacing between grid points and
+    // must match the visual mesh so the collision surface lines up with what is rendered.
+    //
+    // Bullet does not copy the height data, so this shape owns it for its whole lifetime.
+    // Bullet also vertically centres the heightfield around (minHeight + maxHeight) / 2, so
+    // the owning rigid body must be translated up by GetVerticalOffset() to align with the
+    // raw heights that were fed in.
+    CollisionShapeHeightfield(uint32_t width, uint32_t length, std::vector<float> heights, float cellSize);
+
+    virtual Type GetType() const override { return Type::Heightfield; }
+
+    float GetVerticalOffset() const { return m_VerticalOffset; }
+
+private:
+    std::vector<float> m_Heights; // Must outlive m_pShape: btHeightfieldTerrainShape holds a raw pointer to it.
+    float m_VerticalOffset{ 0.0f };
 };
 
 } // namespace WingsOfSteel

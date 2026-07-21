@@ -1,4 +1,7 @@
+#include <algorithm>
+
 #include <btBulletCollisionCommon.h>
+#include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "core/log.hpp"
@@ -152,6 +155,44 @@ CollisionShapeCylinder::CollisionShapeCylinder(Axis axis, float width, float hei
         m_pShape = std::make_unique<btCylinderShapeZ>(halfExtents);
     }
     m_pShape->setUserPointer(this);
+}
+
+/////////////////////////////////////////////////////////////////////
+// CollisionShapeHeightfield
+/////////////////////////////////////////////////////////////////////
+
+CollisionShapeHeightfield::CollisionShapeHeightfield(uint32_t width, uint32_t length, std::vector<float> heights, float cellSize)
+    : m_Heights(std::move(heights))
+{
+    if (m_Heights.size() != static_cast<size_t>(width) * length)
+    {
+        Log::Error() << "CollisionShapeHeightfield: heights buffer size (" << m_Heights.size() << ") does not match width * length (" << (width * length) << ").";
+        m_Heights.resize(static_cast<size_t>(width) * length, 0.0f);
+    }
+
+    const auto [minIt, maxIt] = std::minmax_element(m_Heights.begin(), m_Heights.end());
+    const float minHeight = m_Heights.empty() ? 0.0f : *minIt;
+    const float maxHeight = m_Heights.empty() ? 0.0f : *maxIt;
+    m_VerticalOffset = (minHeight + maxHeight) * 0.5f;
+
+    // Height data is float, so the height scale is 1.0 (it only affects integer height types).
+    // Up axis is Y (index 1), matching the visual mesh.
+    auto pHeightfieldShape = std::make_unique<btHeightfieldTerrainShape>(
+        static_cast<int>(width),
+        static_cast<int>(length),
+        m_Heights.data(),
+        1.0f,
+        minHeight,
+        maxHeight,
+        1,
+        PHY_FLOAT,
+        false);
+
+    // Grid points are one unit apart in local space; scale them out to the cell size so the
+    // collision surface spans the same extents as the rendered mesh. Y is left unscaled.
+    pHeightfieldShape->setLocalScaling(btVector3(cellSize, 1.0f, cellSize));
+    pHeightfieldShape->setUserPointer(this);
+    m_pShape = std::move(pHeightfieldShape);
 }
 
 } // namespace WingsOfSteel
