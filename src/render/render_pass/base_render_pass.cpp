@@ -5,6 +5,7 @@
 #include "scene/scene.hpp"
 #include "scene/systems/landscape_render_system.hpp"
 #include "scene/systems/model_render_system.hpp"
+#include "scene/systems/sea_render_system.hpp"
 #include "pandora.hpp"
 
 namespace WingsOfSteel
@@ -57,6 +58,13 @@ void BaseRenderPass::Render(wgpu::CommandEncoder& encoder)
         if (pModelRenderSystem)
         {
             pModelRenderSystem->Render(renderPass);
+        }
+
+        // The sea is translucent, so it must be drawn after all opaque geometry.
+        SeaRenderSystem* pSeaRenderSystem = pScene->GetSystem<SeaRenderSystem>();
+        if (pSeaRenderSystem)
+        {
+            pSeaRenderSystem->Render(renderPass);
         }
     }
 
