@@ -34,6 +34,11 @@ public:
     float FalloffEnd{ 0.95f }; // Normalized distance at which the falloff reaches full strength.
     float FalloffStrength{ 1.0f }; // How much height is subtracted at full falloff, in normalized height.
 
+    // Domain warping distorts the terrain before the falloff is applied, turning what would
+    // otherwise be a fairly circular island into one with headlands and inlets.
+    float DomainWarpAmp{ 30.0f }; // Warp distance, in cells. Set to 0 to disable warping.
+    float DomainWarpFrequency{ 0.01f };
+
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
 

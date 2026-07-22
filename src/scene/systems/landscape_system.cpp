@@ -81,11 +81,26 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
     noise.SetFrequency(landscapeComponent.Frequency);
     noise.SetSeed(landscapeComponent.Seed);
 
+    // The warp uses an offset seed, so the distortion doesn't correlate with the terrain it is
+    // being applied to, which would largely cancel it out.
+    FastNoiseLite warp;
+    warp.SetDomainWarpType(FastNoiseLite::DomainWarpType_OpenSimplex2);
+    warp.SetDomainWarpAmp(landscapeComponent.DomainWarpAmp);
+    warp.SetFrequency(landscapeComponent.DomainWarpFrequency);
+    warp.SetSeed(landscapeComponent.Seed + 1337);
+
     for (int y = 0; y < landscapeComponent.Length; y++)
     {
         for (int x = 0; x < landscapeComponent.Width; x++)
         {
-            float height = noise.GetNoise(static_cast<float>(x), static_cast<float>(y));
+            // Only the terrain sample is warped, never the coordinates the falloff is based on.
+            // Warping both would tie the shape of the coastline to the terrain and the two would
+            // largely cancel out.
+            float warpedX = static_cast<float>(x);
+            float warpedY = static_cast<float>(y);
+            warp.DomainWarp(warpedX, warpedY);
+
+            float height = noise.GetNoise(warpedX, warpedY);
             height = (height + 1.0f) * 0.5f; // Remap from [-1, 1] to [0, 1]
 
             // Push the terrain down towards the edges of the map, so we end up with an island
@@ -227,6 +242,8 @@ void LandscapeSystem::DrawDebugUI()
     ImGui::DragFloat("Falloff start", &landscapeComponent.FalloffStart, 0.01f, 0.0f, 2.0f, "%.2f");
     ImGui::DragFloat("Falloff end", &landscapeComponent.FalloffEnd, 0.01f, 0.0f, 2.0f, "%.2f");
     ImGui::DragFloat("Falloff strength", &landscapeComponent.FalloffStrength, 0.01f, 0.0f, 2.0f, "%.2f");
+    ImGui::DragFloat("Domain warp amp", &landscapeComponent.DomainWarpAmp, 0.5f, 0.0f, 200.0f, "%.1f");
+    ImGui::DragFloat("Domain warp frequency", &landscapeComponent.DomainWarpFrequency, 0.0005f, 0.0f, 0.1f, "%.4f");
 
     ImGui::Checkbox("Show sea level", &m_ShowSeaLevel);
 
