@@ -69,7 +69,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
         x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
         z = glm::clamp(z, 0, (int)(landscapeComponent.Length - 1));
-        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - landscapeComponent.WaterLevel;
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Width] * maxHeight - landscapeComponent.WaterLevel;
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)

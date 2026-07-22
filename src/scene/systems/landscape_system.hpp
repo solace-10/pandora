@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include "imgui/idebugui.hpp"
 #include "scene/entity.hpp"
 #include "scene/systems/system.hpp"
@@ -17,7 +19,7 @@ public:
     ~LandscapeSystem();
 
     void Initialize(Scene* pScene) override{};
-    void Update(float delta) override{};
+    void Update(float delta) override;
 
     void Generate(EntitySharedPtr pLandscapeEntity);
 
@@ -25,9 +27,12 @@ public:
 
 private:
     void GenerateInternal(LandscapeComponent& landscapeComponent);
+    glm::vec2 NormalizedCoords(const LandscapeComponent& landscapeComponent, int x, int y) const;
     void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
     void BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent);
+    void DrawSeaLevel(const LandscapeComponent& landscapeComponent);
     EntityWeakPtr m_pLandscapeEntity;
+    bool m_ShowSeaLevel{ false };
 };
 
 } // namespace WingsOfSteel

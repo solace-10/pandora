@@ -26,6 +26,14 @@ public:
     uint32_t Generation{ 0 }; // Current generation iteration; used by the renderer to know when the component is stale.
     uint32_t Octaves{ 4 };
     float Frequency{ 0.002 };
+
+    // Island shaping. The falloff mask is subtracted from the terrain height, rather than
+    // scaling it, so relief is preserved and the coastline falls wherever the noise happens
+    // to cross the water level.
+    float FalloffStart{ 0.35f }; // Normalized distance from the center at which land starts being pushed down.
+    float FalloffEnd{ 0.95f }; // Normalized distance at which the falloff reaches full strength.
+    float FalloffStrength{ 1.0f }; // How much height is subtracted at full falloff, in normalized height.
+
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
 

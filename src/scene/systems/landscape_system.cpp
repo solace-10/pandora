@@ -8,7 +8,9 @@
 
 #include "imgui.h"
 #include "imgui/imgui.hpp"
+#include "pandora.hpp"
 #include "physics/collision_shape.hpp"
+#include "render/debug_render.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
 #include "scene/components/rigid_body_component.hpp"
@@ -23,6 +25,32 @@ LandscapeSystem::LandscapeSystem()
 
 LandscapeSystem::~LandscapeSystem()
 {
+}
+
+void LandscapeSystem::Update(float delta)
+{
+    if (!m_ShowSeaLevel)
+    {
+        return;
+    }
+
+    if (EntitySharedPtr pLandscapeEntity = m_pLandscapeEntity.lock())
+    {
+        if (pLandscapeEntity->HasComponent<LandscapeComponent>())
+        {
+            DrawSeaLevel(pLandscapeEntity->GetComponent<LandscapeComponent>());
+        }
+    }
+}
+
+// The heightmap is rendered at (height * Height - WaterLevel), so the water line always sits at
+// world y = 0. The grid is drawn to match the extents of the landscape mesh, letting us see at a
+// glance which parts of the terrain are above or below water.
+void LandscapeSystem::DrawSeaLevel(const LandscapeComponent& landscapeComponent)
+{
+    const float halfGridSize = (landscapeComponent.Width * landscapeComponent.CellSize) / 2.0f;
+    const float step = landscapeComponent.CellSize * 10.0f;
+    GetDebugRender()->XZSquareGrid(-halfGridSize, halfGridSize, 0.0f, step, Color::DeepSkyBlue);
 }
 
 void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
@@ -57,13 +85,17 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
     {
         for (int x = 0; x < landscapeComponent.Width; x++)
         {
-            landscapeComponent.Heightmap[y * landscapeComponent.Width + x] = noise.GetNoise(static_cast<float>(x), static_cast<float>(y));
-        }
-    }
+            float height = noise.GetNoise(static_cast<float>(x), static_cast<float>(y));
+            height = (height + 1.0f) * 0.5f; // Remap from [-1, 1] to [0, 1]
 
-    for (float& height : landscapeComponent.Heightmap)
-    {
-        height = (height + 1.0f) * 0.5f; // Remap from [-1, 1] to [0, 1]
+            // Push the terrain down towards the edges of the map, so we end up with an island
+            // rather than terrain which runs off in every direction.
+            const float distance = glm::length(NormalizedCoords(landscapeComponent, x, y));
+            const float falloff = glm::smoothstep(landscapeComponent.FalloffStart, landscapeComponent.FalloffEnd, distance);
+            height = glm::clamp(height - falloff * landscapeComponent.FalloffStrength, 0.0f, 1.0f);
+
+            landscapeComponent.Heightmap[y * landscapeComponent.Width + x] = height;
+        }
     }
 
     landscapeComponent.Generation++;
@@ -74,6 +106,15 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
     {
         BuildPhysics(pLandscapeEntity, landscapeComponent);
     }
+}
+
+// Maps a cell into [-1, 1] on both axes, with (0, 0) at the center of the map. Cell centers are
+// used, so the map is sampled symmetrically regardless of its dimensions.
+glm::vec2 LandscapeSystem::NormalizedCoords(const LandscapeComponent& landscapeComponent, int x, int y) const
+{
+    return glm::vec2(
+        (static_cast<float>(x) + 0.5f) / static_cast<float>(landscapeComponent.Width) * 2.0f - 1.0f,
+        (static_cast<float>(y) + 0.5f) / static_cast<float>(landscapeComponent.Length) * 2.0f - 1.0f);
 }
 
 void LandscapeSystem::BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent)
@@ -89,7 +130,7 @@ void LandscapeSystem::BuildPhysics(EntitySharedPtr pLandscapeEntity, const Lands
     auto getHeight = [&landscapeComponent, maxHeight, waterLevel](int x, int z) -> float {
         x = glm::clamp(x, 0, static_cast<int>(landscapeComponent.Width) - 1);
         z = glm::clamp(z, 0, static_cast<int>(landscapeComponent.Length) - 1);
-        return landscapeComponent.Heightmap[x + z * landscapeComponent.Length] * maxHeight - waterLevel;
+        return landscapeComponent.Heightmap[x + z * landscapeComponent.Width] * maxHeight - waterLevel;
     };
 
     // Row-major, x fastest, to match btHeightfieldTerrainShape's expected data layout.
@@ -180,6 +221,14 @@ void LandscapeSystem::DrawDebugUI()
     }
 
     ImGui::DragFloat("Frequency", &landscapeComponent.Frequency, 0.0001f, 0.0f, 0.03f, "%.4f");
+
+    ImGui::SeparatorText("Island");
+
+    ImGui::DragFloat("Falloff start", &landscapeComponent.FalloffStart, 0.01f, 0.0f, 2.0f, "%.2f");
+    ImGui::DragFloat("Falloff end", &landscapeComponent.FalloffEnd, 0.01f, 0.0f, 2.0f, "%.2f");
+    ImGui::DragFloat("Falloff strength", &landscapeComponent.FalloffStrength, 0.01f, 0.0f, 2.0f, "%.2f");
+
+    ImGui::Checkbox("Show sea level", &m_ShowSeaLevel);
 
     if (ImGui::Button("Generate"))
     {
