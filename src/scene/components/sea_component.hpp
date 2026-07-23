@@ -35,18 +35,18 @@ public:
         { 75.0f, 31.0f, 0.20f },
     } };
     float Amplitude{ 1.0f }; // Global multiplier on wave height.
-    float Speed{ 1.0f }; // Global multiplier on wave phase speed.
+    float Speed{ 0.85f }; // Global multiplier on wave phase speed.
 
     glm::vec4 ShallowColor{ 0.25f, 0.60f, 0.60f, 0.45f };
-    glm::vec4 DeepColor{ 0.03f, 0.15f, 0.30f, 0.85f };
+    glm::vec4 DeepColor{ 0.02f, 0.40f, 0.89f, 0.47f };
     float DepthFalloff{ 40.0f }; // Water depth, in meters, over which the shallow color fades to the deep color.
 
     float FoamDepth{ 5.0f }; // Water depth, in meters, of the foam band hugging the shore.
     float FoamNoiseScale{ 0.08f };
     float FoamSpeed{ 0.5f };
 
-    float SpecularStrength{ 0.5f };
-    float FresnelStrength{ 0.35f };
+    float SpecularStrength{ 0.1f };
+    float FresnelStrength{ 1.5f };
     float SparkleStrength{ 0.4f };
     float SparkleScale{ 0.15f };
 

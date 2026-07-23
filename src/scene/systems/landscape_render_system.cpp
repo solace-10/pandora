@@ -73,7 +73,9 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)
-    std::vector<VertexP3C3N3> vertices;
+    // Normals aren't stored: the shader reconstructs the face normal from screen-space
+    // derivatives of the world position, giving per-triangle flat shading.
+    std::vector<VertexP3C3> vertices;
     const uint32_t vertexGridSize = landscapeSize + 1;
     vertices.reserve(vertexGridSize * vertexGridSize);
 
@@ -85,21 +87,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
             const float worldZ = z * cellSize - halfGridSize;
             const float height = getHeight(x, z);
 
-            // Calculate normal using neighboring heights
-            // Sample heights around this vertex to compute tangent vectors
-            const float heightLeft = getHeight(x - 1, z);
-            const float heightRight = getHeight(x + 1, z);
-            const float heightDown = getHeight(x, z - 1);
-            const float heightUp = getHeight(x, z + 1);
-
-            // Compute tangent vectors
-            const glm::vec3 tangentX = glm::vec3(2.0f * cellSize, heightRight - heightLeft, 0.0f);
-            const glm::vec3 tangentZ = glm::vec3(0.0f, heightUp - heightDown, 2.0f * cellSize);
-
-            // Normal is the cross product of tangents
-            const glm::vec3 normal = glm::normalize(glm::cross(tangentZ, tangentX));
-
-            vertices.push_back({ glm::vec3(worldX, height, worldZ), color, normal });
+            vertices.push_back({ glm::vec3(worldX, height, worldZ), color });
         }
     }
 
@@ -140,11 +128,11 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
         wgpu::BufferDescriptor bufferDescriptor{
             .label = "Landscape vertex buffer",
             .usage = wgpu::BufferUsage::Vertex,
-            .size = vertices.size() * sizeof(VertexP3C3N3),
+            .size = vertices.size() * sizeof(VertexP3C3),
             .mappedAtCreation = true
         };
         m_VertexBuffer = device.CreateBuffer(&bufferDescriptor);
-        memcpy(m_VertexBuffer.GetMappedRange(), vertices.data(), vertices.size() * sizeof(VertexP3C3N3));
+        memcpy(m_VertexBuffer.GetMappedRange(), vertices.data(), vertices.size() * sizeof(VertexP3C3));
         m_VertexBuffer.Unmap();
     }
 
@@ -206,7 +194,7 @@ void LandscapeRenderSystem::CreateRenderPipeline()
         .vertex = {
             .module = m_pShader->GetShaderModule(),
             .bufferCount = 1,
-            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3_N3) },
+            .buffers = GetRenderSystem()->GetVertexBufferLayout(VertexFormat::VERTEX_FORMAT_P3_C3) },
         .primitive = { .topology = wgpu::PrimitiveTopology::TriangleList, .cullMode = wgpu::CullMode::Back },
         .depthStencil = &depthState,
         .multisample = { .count = RenderSystem::MsaaSampleCount },
