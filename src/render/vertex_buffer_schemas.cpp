@@ -20,8 +20,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 1 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP3C3),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP3C3),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -46,8 +46,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 2 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP2C3UV),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP2C3UV),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -72,8 +72,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 2 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP2C4UV),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP2C4UV),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -98,8 +98,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 2 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP3C4UV),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP3C4UV),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -124,8 +124,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 2 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP3C3N3),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP3C3N3),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -145,8 +145,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 1 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP3B3),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP3B3),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
@@ -171,8 +171,8 @@ VertexBufferSchemas::VertexBufferSchemas()
                 .shaderLocation = 2 });
 
         schema.layout = {
-            .arrayStride = sizeof(VertexP3N3UV),
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = sizeof(VertexP3N3UV),
             .attributeCount = schema.attributes.size(),
             .attributes = schema.attributes.data()
         };
