@@ -39,6 +39,25 @@ public:
     float DomainWarpAmp{ 30.0f }; // Warp distance, in cells. Set to 0 to disable warping.
     float DomainWarpFrequency{ 0.01f };
 
+    // Continentalness biases one broad region of the map upwards, so that the terrain naturally
+    // clumps into a single landmass instead of an even spread of land and water.
+    float ContinentFrequency{ 0.002f };
+    float ContinentStrength{ 0.5f }; // How much the continent noise is blended in. 0 disables it.
+
+    // With everything else applied there can still be small islands scattered around the main
+    // landmass. When enabled, any land not connected to the central landmass is pushed just
+    // below the water level, guaranteeing a single island.
+    bool RemoveDisconnectedIslands{ true };
+
+    // Redistribution flattens the lowlands while leaving the peaks alone, giving us wide beaches
+    // and coastal plains. Values above 1 flatten, values below 1 raise the terrain.
+    float Redistribution{ 1.6f };
+
+    // An optional ridged fractal, blended in towards the middle of the island to give it a
+    // mountainous spine. Disabled by default.
+    float RidgeStrength{ 0.0f };
+    float RidgeFrequency{ 0.02f };
+
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
 

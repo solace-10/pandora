@@ -28,6 +28,7 @@ public:
 private:
     void GenerateInternal(LandscapeComponent& landscapeComponent);
     glm::vec2 NormalizedCoords(const LandscapeComponent& landscapeComponent, int x, int y) const;
+    void PruneDisconnectedLandmasses(LandscapeComponent& landscapeComponent);
     void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
     void BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent);
     void DrawSeaLevel(const LandscapeComponent& landscapeComponent);
