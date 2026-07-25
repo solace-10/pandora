@@ -7,8 +7,12 @@
 #include <magic_enum.hpp>
 #include <webgpu/webgpu_cpp.h>
 
+#include "core/smart_ptr.hpp"
+
 namespace WingsOfSteel
 {
+
+DECLARE_SMART_PTR(ProfilingOverlay);
 
 using ImGuiGameMenuBarCallback = std::function<void()>;
 
@@ -50,6 +54,7 @@ private:
     bool m_ShowShaderEditor{ false };
     ImGuiGameMenuBarCallback m_GameMenuBarCallback;
     std::array<ImFont*, magic_enum::enum_count<Font>()> m_Fonts;
+    ProfilingOverlayUniquePtr m_pProfilingOverlay;
 };
 
 inline ImFont* ImGuiSystem::GetFont(Font font) const

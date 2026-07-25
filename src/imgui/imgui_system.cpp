@@ -11,6 +11,7 @@
 #include "imgui/fonts/supplymono_regular_data.hpp"
 #include "imgui/fonts/supplymono_semibold_data.hpp"
 #include "imgui/fonts/ubuntu_mono_data.hpp"
+#include "imgui/profiling_overlay.hpp"
 #include "input/input_system.hpp"
 #include "pandora.hpp"
 #include "render/lighting/lighting_system.hpp"
@@ -46,6 +47,8 @@ ImGuiSystem::ImGuiSystem()
 
     RegisterFonts();
     ApplyStyle();
+
+    m_pProfilingOverlay = std::make_unique<ProfilingOverlay>();
 }
 
 ImGuiSystem::~ImGuiSystem()
@@ -98,6 +101,12 @@ void ImGuiSystem::Update()
                 pLightingSystem->ShowDebugUI(showLighting);
             }
 
+            bool showProfiling = m_pProfilingOverlay->IsVisible();
+            if (ImGui::MenuItem("Profiling", nullptr, &showProfiling))
+            {
+                m_pProfilingOverlay->Show(showProfiling);
+            }
+
             if (ImGui::MenuItem("Shader editor", nullptr, &m_ShowShaderEditor))
             {
                 GetRenderSystem()->GetShaderEditor()->Show(m_ShowShaderEditor);
@@ -118,6 +127,8 @@ void ImGuiSystem::Update()
     {
         ImGui::ShowDemoWindow(&m_ShowDemoWindow);
     }
+
+    m_pProfilingOverlay->Update();
 #endif // BUILD_DEBUG
 }
 
