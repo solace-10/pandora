@@ -48,7 +48,7 @@ void LandscapeRenderSystem::Update(float delta)
     auto view = registry.view<const LandscapeComponent>();
 
     view.each([this](const auto entity, const LandscapeComponent& landscapeComponent) {
-        if (landscapeComponent.Generation == this->m_Generation)
+        if (landscapeComponent.Generation == this->m_Generation && landscapeComponent.VertexColorsGeneration == this->m_VertexColorsGeneration)
         {
             return;
         }
@@ -64,12 +64,24 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     const float halfGridSize = (landscapeSize * cellSize) / 2.0f;
 
     const float maxHeight = landscapeComponent.Height;
-    const glm::vec3 color = glm::vec3(0.2f, 0.4f, 0.2f); // Single green color for all vertices
 
     auto getHeight = [&landscapeComponent, maxHeight](int x, int z) -> float {
         x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
         z = glm::clamp(z, 0, (int)(landscapeComponent.Length - 1));
         return landscapeComponent.Heightmap[x + z * landscapeComponent.Width] * maxHeight - landscapeComponent.WaterLevel;
+    };
+
+    // The vertex grid is one larger than the heightmap on both axes, so the sampling is clamped
+    // exactly like the height is and the outer edge reuses the colors of the border cells.
+    auto getColor = [&landscapeComponent](int x, int z) -> glm::vec3 {
+        if (landscapeComponent.VertexColors.size() != landscapeComponent.Heightmap.size())
+        {
+            return glm::vec3(0.72f, 0.58f, 0.41f); // Single light brown color, used when nothing has tinted the landscape.
+        }
+
+        x = glm::clamp(x, 0, (int)(landscapeComponent.Width - 1));
+        z = glm::clamp(z, 0, (int)(landscapeComponent.Length - 1));
+        return landscapeComponent.VertexColors[x + z * landscapeComponent.Width];
     };
 
     // Generate unique vertices: (landscapeSize+1) x (landscapeSize+1)
@@ -87,7 +99,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
             const float worldZ = z * cellSize - halfGridSize;
             const float height = getHeight(x, z);
 
-            vertices.push_back({ glm::vec3(worldX, height, worldZ), color });
+            vertices.push_back({ glm::vec3(worldX, height, worldZ), getColor(x, z) });
         }
     }
 
@@ -151,6 +163,7 @@ void LandscapeRenderSystem::GenerateGeometry(const LandscapeComponent& landscape
     }
 
     m_Generation = landscapeComponent.Generation;
+    m_VertexColorsGeneration = landscapeComponent.VertexColorsGeneration;
 }
 
 void LandscapeRenderSystem::CreateRenderPipeline()

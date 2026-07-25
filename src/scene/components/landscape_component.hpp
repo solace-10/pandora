@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include <glm/vec3.hpp>
+
 #include "core/serialization.hpp"
 #include "icomponent.hpp"
 #include "component_factory.hpp"
@@ -44,11 +46,6 @@ public:
     float ContinentFrequency{ 0.002f };
     float ContinentStrength{ 0.5f }; // How much the continent noise is blended in. 0 disables it.
 
-    // With everything else applied there can still be small islands scattered around the main
-    // landmass. When enabled, any land not connected to the central landmass is pushed just
-    // below the water level, guaranteeing a single island.
-    bool RemoveDisconnectedIslands{ true };
-
     // Redistribution flattens the lowlands while leaving the peaks alone, giving us wide beaches
     // and coastal plains. Values above 1 flatten, values below 1 raise the terrain.
     float Redistribution{ 1.6f };
@@ -60,6 +57,14 @@ public:
 
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
+
+    // Optional per-cell color, using the same layout as the heightmap. Whoever owns the landscape
+    // is free to fill this in to tint the terrain; when it is empty, or doesn't match the size of
+    // the heightmap, the landscape falls back to a single flat color.
+    // The generation is tracked separately from the one above, as the colors can change without
+    // the terrain itself being regenerated.
+    std::vector<glm::vec3> VertexColors;
+    uint32_t VertexColorsGeneration{ 0 };
 
     void Deserialize(const ResourceDataStore* pContext, const Json::Data& json) override
     {

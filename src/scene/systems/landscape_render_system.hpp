@@ -35,6 +35,7 @@ private:
     uint32_t m_VertexCount{ 0 };
     uint32_t m_IndexCount{ 0 };
     uint32_t m_Generation{ 0 };
+    uint32_t m_VertexColorsGeneration{ 0 };
     bool m_Initialized{ false };
     std::optional<SignalId> m_ShaderInjectionSignalId;
 };

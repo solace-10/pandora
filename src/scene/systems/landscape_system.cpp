@@ -1,6 +1,5 @@
 #include "scene/systems/landscape_system.hpp"
 
-#include <algorithm>
 #include <vector>
 
 #include <FastNoiseLite.h>
@@ -148,11 +147,6 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
         }
     }
 
-    if (landscapeComponent.RemoveDisconnectedIslands)
-    {
-        PruneDisconnectedLandmasses(landscapeComponent);
-    }
-
     landscapeComponent.Generation++;
 
     GenerateDebugHeightmapTexture(landscapeComponent);
@@ -160,101 +154,6 @@ void LandscapeSystem::GenerateInternal(LandscapeComponent& landscapeComponent)
     if (EntitySharedPtr pLandscapeEntity = m_pLandscapeEntity.lock())
     {
         BuildPhysics(pLandscapeEntity, landscapeComponent);
-    }
-}
-
-// Finds the landmass at the center of the map and pushes any land which isn't part of it below
-// the water level, so we are always left with a single island. Cells are clamped rather than
-// flattened, so the sea floor keeps the shape it already had and we end up with reefs and
-// shallows around the island, rather than a flat shelf.
-void LandscapeSystem::PruneDisconnectedLandmasses(LandscapeComponent& landscapeComponent)
-{
-    const int width = static_cast<int>(landscapeComponent.Width);
-    const int length = static_cast<int>(landscapeComponent.Length);
-    if (width <= 0 || length <= 0 || landscapeComponent.Height <= 0.0f)
-    {
-        return;
-    }
-
-    const float waterLevel = landscapeComponent.WaterLevel / landscapeComponent.Height;
-    auto isLand = [&landscapeComponent, waterLevel, width](int x, int y) -> bool {
-        return landscapeComponent.Heightmap[y * width + x] > waterLevel;
-    };
-
-    // Label each landmass with its own id, keeping track of how large each one is.
-    constexpr int32_t unassigned = -1;
-    std::vector<int32_t> labels(static_cast<size_t>(width) * length, unassigned);
-    std::vector<int32_t> sizes;
-    std::vector<glm::ivec2> pending;
-
-    for (int y = 0; y < length; y++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            if (!isLand(x, y) || labels[y * width + x] != unassigned)
-            {
-                continue;
-            }
-
-            const int32_t label = static_cast<int32_t>(sizes.size());
-            int32_t size = 0;
-
-            pending.push_back(glm::ivec2(x, y));
-            labels[y * width + x] = label;
-
-            while (!pending.empty())
-            {
-                const glm::ivec2 cell = pending.back();
-                pending.pop_back();
-                size++;
-
-                const glm::ivec2 neighbours[4] = {
-                    glm::ivec2(cell.x - 1, cell.y),
-                    glm::ivec2(cell.x + 1, cell.y),
-                    glm::ivec2(cell.x, cell.y - 1),
-                    glm::ivec2(cell.x, cell.y + 1)
-                };
-
-                for (const glm::ivec2& neighbour : neighbours)
-                {
-                    if (neighbour.x < 0 || neighbour.x >= width || neighbour.y < 0 || neighbour.y >= length)
-                    {
-                        continue;
-                    }
-
-                    if (isLand(neighbour.x, neighbour.y) && labels[neighbour.y * width + neighbour.x] == unassigned)
-                    {
-                        labels[neighbour.y * width + neighbour.x] = label;
-                        pending.push_back(neighbour);
-                    }
-                }
-            }
-
-            sizes.push_back(size);
-        }
-    }
-
-    if (sizes.empty())
-    {
-        return; // The entire map is underwater, nothing to prune.
-    }
-
-    // Keep the landmass at the center of the map. At extreme settings the center can be
-    // underwater, in which case we fall back to the largest landmass so we never end up
-    // sinking the entire map.
-    int32_t keptLabel = labels[(length / 2) * width + (width / 2)];
-    if (keptLabel == unassigned)
-    {
-        keptLabel = static_cast<int32_t>(std::distance(sizes.begin(), std::max_element(sizes.begin(), sizes.end())));
-    }
-
-    const float sunkHeight = glm::max(0.0f, waterLevel - 0.005f);
-    for (size_t i = 0; i < labels.size(); i++)
-    {
-        if (labels[i] != unassigned && labels[i] != keptLabel)
-        {
-            landscapeComponent.Heightmap[i] = glm::min(landscapeComponent.Heightmap[i], sunkHeight);
-        }
     }
 }
 
@@ -381,7 +280,6 @@ void LandscapeSystem::DrawDebugUI()
     ImGui::DragFloat("Domain warp frequency", &landscapeComponent.DomainWarpFrequency, 0.0005f, 0.0f, 0.1f, "%.4f");
     ImGui::DragFloat("Continent frequency", &landscapeComponent.ContinentFrequency, 0.0001f, 0.0f, 0.02f, "%.4f");
     ImGui::DragFloat("Continent strength", &landscapeComponent.ContinentStrength, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::Checkbox("Remove disconnected islands", &landscapeComponent.RemoveDisconnectedIslands);
     ImGui::DragFloat("Redistribution", &landscapeComponent.Redistribution, 0.01f, 0.1f, 4.0f, "%.2f");
     ImGui::DragFloat("Ridge strength", &landscapeComponent.RidgeStrength, 0.01f, 0.0f, 1.0f, "%.2f");
     ImGui::DragFloat("Ridge frequency", &landscapeComponent.RidgeFrequency, 0.0005f, 0.0f, 0.1f, "%.4f");
