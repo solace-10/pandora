@@ -1,7 +1,9 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 #include <webgpu/webgpu_cpp.h>
 
@@ -29,7 +31,25 @@ public:
     void DrawDebugUI() override;
 
 private:
+    // Distance to the shoreline, sampled on a grid finer than the landscape's. Built once per
+    // landscape generation and discarded as soon as it has been baked into the sea mesh.
+    struct ShoreDistanceField
+    {
+        uint32_t Width{ 0 };
+        uint32_t Length{ 0 };
+        float CellSize{ 0.0f }; // In meters.
+        std::vector<float> Distance; // Meters from the shoreline, 0 at the waterline and growing seawards.
+
+        // Noise evaluated at the nearest point on the shore rather than at the sample itself, so it
+        // stays constant along the path a wave travels in on and different beaches can be out of phase
+        // without the crests shearing as they move.
+        std::vector<float> Phase; // In [0, 1).
+
+        float Sample(const std::vector<float>& values, float worldX, float worldZ) const;
+    };
+
     void GenerateGeometry(const SeaComponent& seaComponent, const LandscapeComponent* pLandscapeComponent);
+    ShoreDistanceField BuildShoreDistanceField(const LandscapeComponent* pLandscapeComponent) const;
     void CreateUniforms();
     void UpdateUniforms(const SeaComponent& seaComponent);
     void CreateRenderPipeline();
@@ -41,9 +61,10 @@ private:
         glm::vec4 waves[3]; // xy: direction, z: steepness, w: wavelength
         glm::vec4 shallowColor;
         glm::vec4 deepColor;
-        glm::vec4 params0; // x: depth falloff, y: foam depth, z: foam noise scale, w: foam speed
+        glm::vec4 params0; // x: depth falloff, y: foam band width, z: foam speed, w: foam reach
         glm::vec4 params1; // x: specular strength, y: fresnel strength, z: sparkle strength, w: sparkle scale
-        glm::vec4 params2; // x: amplitude, y: speed
+        glm::vec4 params2; // x: amplitude, y: speed, z: foam wash width, w: foam intensity
+        glm::vec4 params3; // x: foam warp scale, y: foam warp strength, z: foam crest sharpness
     };
 
     ResourceShaderSharedPtr m_pShader;

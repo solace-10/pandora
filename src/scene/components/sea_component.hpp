@@ -26,7 +26,7 @@ public:
 
     float Width{ 2000.0f }; // Extent along the X axis, in meters, centered on the origin.
     float Length{ 2000.0f }; // Extent along the Z axis, in meters, centered on the origin.
-    float CellSize{ 20.0f }; // Cell size of the sea mesh, in meters. Can be coarser than the landscape's.
+    float CellSize{ 10.0f }; // Cell size of the sea mesh, in meters. The shore distance baked into the mesh is interpolated across it, so going much coarser than the landscape's rounds off headlands and inlets.
     uint32_t Generation{ 1 }; // Current generation iteration; used by the renderer to know when the component is stale.
 
     std::array<SeaWave, 3> Waves{ {
@@ -41,9 +41,16 @@ public:
     glm::vec4 DeepColor{ 0.02f, 0.40f, 0.89f, 0.47f };
     float DepthFalloff{ 40.0f }; // Water depth, in meters, over which the shallow color fades to the deep color.
 
-    float FoamDepth{ 5.0f }; // Water depth, in meters, of the foam band hugging the shore.
-    float FoamNoiseScale{ 0.08f };
-    float FoamSpeed{ 0.5f };
+    // Foam is driven by the distance to the shoreline rather than by the water depth, so that a
+    // crest is the same width on a flat beach as it is against a cliff.
+    float FoamBandWidth{ 26.0f }; // Crest-to-crest distance of the waves running into the shore, in meters.
+    float FoamSpeed{ 6.0f }; // How fast the crests travel shorewards, in meters per second.
+    float FoamReach{ 55.0f }; // Distance from the shore, in meters, at which the crests start forming.
+    float FoamWashWidth{ 10.0f }; // Width, in meters, of the foam that lingers right at the waterline.
+    float FoamWarpScale{ 0.02f }; // Frequency of the noise warping the shore distance; lower is broader.
+    float FoamWarpStrength{ 6.0f }; // How far, in meters, the noise pushes the crests out of shape.
+    float FoamCrestSharpness{ 0.5f }; // Fraction of a band taken up by the crest itself; the rest is its trailing wash.
+    float FoamIntensity{ 1.0f }; // Overall foam opacity.
 
     float SpecularStrength{ 0.1f };
     float FresnelStrength{ 1.5f };
