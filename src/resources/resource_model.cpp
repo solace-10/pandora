@@ -744,8 +744,8 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
         }
 
         wgpu::VertexBufferLayout bufferLayout{
-            .arrayStride = arrayStride,
             .stepMode = wgpu::VertexStepMode::Vertex,
+            .arrayStride = arrayStride,
             .attributeCount = 1,
             .attributes = &vertexAttribute
         };

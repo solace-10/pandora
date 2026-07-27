@@ -10,7 +10,6 @@
 #include "imgui/imgui.hpp"
 #include "pandora.hpp"
 #include "physics/collision_shape.hpp"
-#include "render/debug_render.hpp"
 #include "resources/resource_texture_2d.hpp"
 #include "scene/components/landscape_component.hpp"
 #include "scene/components/rigid_body_component.hpp"
@@ -29,28 +28,6 @@ LandscapeSystem::~LandscapeSystem()
 
 void LandscapeSystem::Update(float delta)
 {
-    if (!m_ShowSeaLevel)
-    {
-        return;
-    }
-
-    if (EntitySharedPtr pLandscapeEntity = m_pLandscapeEntity.lock())
-    {
-        if (pLandscapeEntity->HasComponent<LandscapeComponent>())
-        {
-            DrawSeaLevel(pLandscapeEntity->GetComponent<LandscapeComponent>());
-        }
-    }
-}
-
-// The heightmap is rendered at (height * Height - WaterLevel), so the water line always sits at
-// world y = 0. The grid is drawn to match the extents of the landscape mesh, letting us see at a
-// glance which parts of the terrain are above or below water.
-void LandscapeSystem::DrawSeaLevel(const LandscapeComponent& landscapeComponent)
-{
-    const float halfGridSize = (landscapeComponent.Width * landscapeComponent.CellSize) / 2.0f;
-    const float step = landscapeComponent.CellSize * 10.0f;
-    GetDebugRender()->XZSquareGrid(-halfGridSize, halfGridSize, 0.0f, step, Color::DeepSkyBlue);
 }
 
 void LandscapeSystem::Generate(EntitySharedPtr pLandscapeEntity)
@@ -283,8 +260,6 @@ void LandscapeSystem::DrawDebugUI()
     ImGui::DragFloat("Redistribution", &landscapeComponent.Redistribution, 0.01f, 0.1f, 4.0f, "%.2f");
     ImGui::DragFloat("Ridge strength", &landscapeComponent.RidgeStrength, 0.01f, 0.0f, 1.0f, "%.2f");
     ImGui::DragFloat("Ridge frequency", &landscapeComponent.RidgeFrequency, 0.0005f, 0.0f, 0.1f, "%.4f");
-
-    ImGui::Checkbox("Show sea level", &m_ShowSeaLevel);
 
     if (ImGui::Button("Generate"))
     {

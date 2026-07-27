@@ -30,9 +30,7 @@ private:
     glm::vec2 NormalizedCoords(const LandscapeComponent& landscapeComponent, int x, int y) const;
     void GenerateDebugHeightmapTexture(LandscapeComponent& landscapeComponent);
     void BuildPhysics(EntitySharedPtr pLandscapeEntity, const LandscapeComponent& landscapeComponent);
-    void DrawSeaLevel(const LandscapeComponent& landscapeComponent);
     EntityWeakPtr m_pLandscapeEntity;
-    bool m_ShowSeaLevel{ false };
 };
 
 } // namespace WingsOfSteel
