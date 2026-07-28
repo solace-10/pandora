@@ -9,12 +9,20 @@
 namespace WingsOfSteel
 {
 
+// Whether a texture gets a full mip chain. Generating one costs a render pass per level, which is
+// wasted on a texture only ever shown at a fixed size - a debug view, say.
+enum class MipLevels
+{
+    Generate,
+    None
+};
+
 class ResourceTexture2D : public Resource
 {
 public:
     ResourceTexture2D() {}
     ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize); // Construct from compressed data.
-    ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels); // Construct from uncompressed data.
+    ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels, MipLevels mipLevels = MipLevels::Generate); // Construct from uncompressed data.
     ~ResourceTexture2D() override;
 
     void Load(const std::string& path) override;
@@ -28,7 +36,7 @@ public:
 private:
     void LoadInternal(FileReadResult result, FileSharedPtr pFile);
     void LoadFromMemoryCompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize);
-    void LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels);
+    void LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels, MipLevels mipLevels);
     wgpu::TextureFormat GetTextureFormat(ColorSpace colorSpace) const;
 
     wgpu::Texture m_Texture;

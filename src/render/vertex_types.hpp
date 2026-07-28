@@ -16,6 +16,7 @@ enum class VertexFormat
     VERTEX_FORMAT_P3_C3_N3,
     VERTEX_FORMAT_P3_B3, // Position + Barycentric
     VERTEX_FORMAT_P3_N3_UV,
+    VERTEX_FORMAT_P3, // Position only, for geometry which is shaded entirely from a texture.
 
     VERTEX_FORMAT_COUNT
 };

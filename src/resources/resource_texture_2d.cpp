@@ -32,9 +32,9 @@ ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorS
     LoadFromMemoryCompressed(label, colorSpace, pData, dataSize);
 }
 
-ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+ResourceTexture2D::ResourceTexture2D(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels, MipLevels mipLevels)
 {
-    LoadFromMemoryUncompressed(label, colorSpace, pData, dataSize, width, height, channels);
+    LoadFromMemoryUncompressed(label, colorSpace, pData, dataSize, width, height, channels, mipLevels);
 }
 
 ResourceTexture2D::~ResourceTexture2D()
@@ -145,17 +145,27 @@ void ResourceTexture2D::LoadFromMemoryCompressed(const std::string& label, Color
     }
 }
 
-void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels)
+void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels, MipLevels mipLevels)
 {
     m_Width = width;
     m_Height = height;
     m_Channels = channels;
+
+    // The smaller levels are rendered into the texture, so it only needs to be an attachment when
+    // there are any to generate.
+    const bool generateMips = (mipLevels == MipLevels::Generate);
+    wgpu::TextureUsage usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
+    if (generateMips)
+    {
+        usage |= wgpu::TextureUsage::RenderAttachment;
+    }
+
     wgpu::TextureDescriptor textureDescriptor{
-        .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::RenderAttachment,
+        .usage = usage,
         .dimension = wgpu::TextureDimension::e2D,
         .size = { m_Width, m_Height, 1 },
         .format = GetTextureFormat(colorSpace),
-        .mipLevelCount = GetRenderSystem()->GetMipLevelGenerator()->GetMipLevelCount(width, height),
+        .mipLevelCount = generateMips ? GetRenderSystem()->GetMipLevelGenerator()->GetMipLevelCount(width, height) : 1,
         .sampleCount = 1
     };
 
@@ -175,7 +185,10 @@ void ResourceTexture2D::LoadFromMemoryUncompressed(const std::string& label, Col
     const size_t textureDataSize = m_Width * m_Height * m_Channels;
     GetRenderSystem()->GetDevice().GetQueue().WriteTexture(&destination, pData, dataSize, &sourceLayout, &textureDescriptor.size);
 
-    GetRenderSystem()->GetMipLevelGenerator()->GenerateMips(m_Texture);
+    if (generateMips)
+    {
+        GetRenderSystem()->GetMipLevelGenerator()->GenerateMips(m_Texture);
+    }
 
     wgpu::TextureViewDescriptor textureViewDescriptor{
         .label = label.c_str(),

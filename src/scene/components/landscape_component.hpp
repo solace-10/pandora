@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 
 #include <glm/vec3.hpp>
@@ -58,13 +59,26 @@ public:
     std::vector<float> Heightmap;
     ResourceTexture2DUniquePtr DebugHeightmapTexture;
 
-    // Optional per-cell color, using the same layout as the heightmap. Whoever owns the landscape
-    // is free to fill this in to tint the terrain; when it is empty, or doesn't match the size of
-    // the heightmap, the landscape falls back to a single flat color.
-    // The generation is tracked separately from the one above, as the colors can change without
-    // the terrain itself being regenerated.
-    std::vector<glm::vec3> VertexColors;
-    uint32_t VertexColorsGeneration{ 0 };
+    // Terrain splatting. Layer i tints the ground with SplatColors[i] in proportion to its weight
+    // at that point; whatever weight is left over falls back to SplatBaseColor, so a cell nothing
+    // has claimed stays bare terrain. Whoever owns the landscape fills these in, as with the
+    // heightmap.
+    static constexpr uint32_t kMaxSplatLayers = 8;
+
+    // Per-cell layer weights, quantized to bytes. Laid out as kMaxSplatLayers / 4 planes of
+    // Width * Length RGBA texels, rather than interleaved per cell: that is precisely the layout
+    // an array texture expects, so the upload is a single WriteTexture with no shuffling in
+    // between. Empty leaves the landscape uniformly SplatBaseColor.
+    //
+    // The generation is tracked separately from the one above, as the weights change constantly
+    // without the terrain itself being regenerated.
+    std::vector<uint8_t> SplatWeights;
+    uint32_t SplatWeightsGeneration{ 0 };
+
+    // Cheap enough to be pushed to the GPU every frame, so changing one of these costs nothing
+    // and needs no generation of its own.
+    std::array<glm::vec3, kMaxSplatLayers> SplatColors{};
+    glm::vec3 SplatBaseColor{ 0.72f, 0.58f, 0.41f }; // Light brown.
 
     void Deserialize(const ResourceDataStore* pContext, const Json::Data& json) override
     {
