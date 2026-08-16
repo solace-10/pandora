@@ -189,7 +189,10 @@ FetchContent_MakeAvailable(stb)
 
 FetchContent_Declare(
     tinygltf
-    URL https://raw.githubusercontent.com/syoyo/tinygltf/release/tiny_gltf.h
+    # Pinned to a commit rather than the 'release' branch: upstream deprecated the C++ v1/v2/v3
+    # API in favour of a v3 C rewrite and moved tiny_gltf.h under attic/, so the branch URL 404s.
+    # This is the last commit before that move, and is identical to the header we already used.
+    URL https://raw.githubusercontent.com/syoyo/tinygltf/544290f60db8b505d96df509a008feae5d78eebe/tiny_gltf.h
     DOWNLOAD_NO_EXTRACT true
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext/tinygltf
     EXCLUDE_FROM_ALL
