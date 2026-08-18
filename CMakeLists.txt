@@ -74,6 +74,23 @@ if(TARGET_PLATFORM_WINDOWS)
     target_compile_options(pandora PUBLIC /MP) # Enable parallel compilation.
 endif()
 
+# Compile the assets described in game/assets into game/bin/data/core.
+# Every platform needs this, as the compiled assets are what the game loads.
+# Forge caches its output, so this is cheap when nothing has changed.
+if(WIN32)
+    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe")
+else()
+    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge")
+endif()
+
+add_custom_target(forge_compile_assets
+    COMMAND ${FORGE_EXECUTABLE} assets
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    COMMENT "Compiling assets..."
+)
+
+add_dependencies(pandora forge_compile_assets)
+
 if (TARGET_PLATFORM_NATIVE)
     target_include_directories(pandora SYSTEM PUBLIC ext/bullet3/src)
     target_link_libraries(pandora PUBLIC webgpu_cpp webgpu_dawn glfw webgpu_glfw)
@@ -82,12 +99,6 @@ elseif(TARGET_PLATFORM_WEB)
     # Generate manifest.json before building for web.
     # This is called every time, with Forge regenerating the manifest as necessary.
 
-    if(WIN32)
-        set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe")
-    else()
-        set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge")
-    endif()
-    
     add_custom_target(forge_generate_manifest
         COMMAND ${FORGE_EXECUTABLE} manifest
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
@@ -102,6 +113,9 @@ elseif(TARGET_PLATFORM_WEB)
     
     add_dependencies(pandora forge_generate_manifest forge_upload)
     add_dependencies(forge_upload forge_generate_manifest)
+
+    # The manifest must describe compiled assets, never their sources.
+    add_dependencies(forge_generate_manifest forge_compile_assets)
 
     target_compile_options(pandora PUBLIC
         "--use-port=bullet"

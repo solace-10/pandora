@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
+
+	"wings_of_steel/forge/paths"
 )
 
 type Server struct {
@@ -58,20 +59,5 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func FindGameBinDir() (string, error) {
-	// Get the executable's directory to find project root
-	exePath, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("failed to get executable path: %w", err)
-	}
-
-	// Navigate from pandora/tools/forge/src/ to project root
-	forgeDir := filepath.Dir(exePath)
-	projectRoot := filepath.Join(forgeDir, "..", "..", "..", "..")
-	projectRoot, err = filepath.Abs(projectRoot)
-	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	gameBinDir := filepath.Join(projectRoot, "game", "bin")
-	return gameBinDir, nil
+	return paths.GameBinDir()
 }

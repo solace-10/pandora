@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/schollz/progressbar/v3"
+
+	"wings_of_steel/forge/paths"
 )
 
 const WorkerURL = "https://forge-cloudflare-worker.wings-of-steel.workers.dev"
@@ -208,22 +210,15 @@ func (u *Uploader) uploadFile(filePath, hash string) error {
 }
 
 func FindPaths() (manifestPath, assetsDir string, err error) {
-	// Get the executable's directory to find project root
-	exePath, err := os.Executable()
+	manifestPath, err = paths.ManifestPath()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get executable path: %w", err)
+		return "", "", err
 	}
 
-	// Navigate from pandora/tools/forge/src/ to project root
-	forgeDir := filepath.Dir(exePath)
-	projectRoot := filepath.Join(forgeDir, "..", "..", "..", "..")
-	projectRoot, err = filepath.Abs(projectRoot)
+	assetsDir, err = paths.DataCoreDir()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get absolute path: %w", err)
+		return "", "", err
 	}
-
-	manifestPath = filepath.Join(projectRoot, "game", "bin", "manifest.json")
-	assetsDir = filepath.Join(projectRoot, "game", "bin", "data", "core")
 
 	return manifestPath, assetsDir, nil
 }

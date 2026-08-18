@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"wings_of_steel/forge/manifest"
+	"wings_of_steel/forge/paths"
 )
 
 var ManifestCmd = &cobra.Command{
@@ -21,20 +21,17 @@ This manifest is used by the web build to download and verify assets.
 Source: game/bin/data/core/
 Output: game/bin/manifest.json`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get the executable's directory to find project root
-		exePath, err := os.Executable()
+		sourceDir, err := paths.DataCoreDir()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting executable path: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Navigate from pandora/tools/forge/src/ to project root
-		forgeDir := filepath.Dir(exePath)
-		projectRoot := filepath.Join(forgeDir, "..", "..", "..", "..")
-		projectRoot, _ = filepath.Abs(projectRoot)
-
-		sourceDir := filepath.Join(projectRoot, "game", "bin", "data", "core")
-		outputDir := filepath.Join(projectRoot, "game", "bin")
+		outputDir, err := paths.GameBinDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 
 		fmt.Printf("Generating manifest...\n")
 		fmt.Printf("Source: %s\n", sourceDir)
