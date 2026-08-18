@@ -21,6 +21,7 @@ ResourceSystem::ResourceSystem()
     RegisterResource<ResourceModel>("gltf");
     RegisterResource<ResourceShader>("wgsl");
     RegisterResource<ResourceTexture2D>("jpg");
+    RegisterResource<ResourceTexture2D>("ktx2");
     RegisterResource<ResourceTexture2D>("png");
 }
 

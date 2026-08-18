@@ -73,8 +73,19 @@ and how to update it.
 | `encoding` | `none` | `uastc` or `basis-lz` to apply GPU block compression |
 | `zstd` | none | Supercompression level, 1 to 22 |
 
-`encoding` and `zstd` default to off because the engine does not transcode
-KTX2 yet. Leave them alone until it does.
+`encoding` and `zstd` default to off, which produces an uncompressed RGBA8 file.
+That is larger than the source PNG or JPEG, so anything shipping should set them.
+
+The engine transcodes a Basis Universal payload at load time to whatever block
+format the device supports, so one encoded file serves every platform. `uastc`
+keeps more quality and is the right choice for detailed colour and normal maps;
+`basis-lz` produces far smaller files and suits textures where that matters more.
+Pair either with `zstd` - `uastc` in particular relies on it, as it is otherwise
+a fixed byte per texel.
+
+Note that block compression needs dimensions that are a multiple of 4. The engine
+falls back to uncompressed for a texture that is not, having logged a warning, so
+set `width` and `height` accordingly.
 
 ## Caching
 

@@ -42,6 +42,8 @@ public:
     wgpu::Adapter& GetAdapter() const;
     wgpu::Device& GetDevice() const;
 
+    bool HasFeature(wgpu::FeatureName feature) const;
+
     wgpu::BindGroupLayout& GetGlobalUniformsLayout();
     const wgpu::VertexBufferLayout* GetVertexBufferLayout(VertexFormat vertexFormat) const;
 

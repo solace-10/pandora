@@ -38,8 +38,10 @@ type textureOptions struct {
 	// linear, or their values are gamma-mangled on load.
 	Usage string `json:"usage"`
 
-	// Encoding optionally applies GPU block compression. It defaults to none,
-	// as nothing in the engine transcodes yet.
+	// Encoding optionally applies GPU block compression, as a Basis Universal
+	// payload the engine transcodes to a device specific format on load. It
+	// defaults to none, which is only reasonable for a texture small enough that
+	// the encoding artifacts would cost more than the memory saves.
 	Encoding string `json:"encoding"`
 
 	// Zstd optionally applies supercompression at the given level.

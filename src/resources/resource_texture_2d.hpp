@@ -37,7 +37,9 @@ private:
     void LoadInternal(FileReadResult result, FileSharedPtr pFile);
     void LoadFromMemoryCompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize);
     void LoadFromMemoryUncompressed(const std::string& label, ColorSpace colorSpace, const unsigned char* pData, size_t dataSize, uint32_t width, uint32_t height, uint32_t channels, MipLevels mipLevels);
+    void LoadFromMemoryKTX2(const std::string& label, const unsigned char* pData, size_t dataSize);
     wgpu::TextureFormat GetTextureFormat(ColorSpace colorSpace) const;
+    void CreateTextureAndView(const std::string& label, wgpu::TextureFormat format, uint32_t mipLevelCount, bool renderAttachment);
 
     wgpu::Texture m_Texture;
     wgpu::TextureView m_TextureView;

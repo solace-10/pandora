@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <string_view>
+#include <vector>
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -157,6 +158,11 @@ wgpu::Device& RenderSystem::GetDevice() const
     return g_Device;
 }
 
+bool RenderSystem::HasFeature(wgpu::FeatureName feature) const
+{
+    return g_Device && g_Device.HasFeature(feature);
+}
+
 void RenderSystem::AcquireDevice(void (*callback)(wgpu::Device))
 {
     // Request the high performance device if possible, so we don't accidentally select an integrated GPU when
@@ -188,7 +194,37 @@ void RenderSystem::AcquireDevice(void (*callback)(wgpu::Device))
             Log::Info() << " - Description: " << std::string_view(info.description.data, info.description.length);
             Log::Info() << " - Backend type: " << magic_enum::enum_name(info.backendType);
 
+            // Compressed texture formats are opt-in, and requesting one the adapter does not
+            // have makes RequestDevice fail outright, so each is gated on the adapter having
+            // it. Which of these is available varies: desktop GPUs give us BC, mobile tends
+            // towards ETC2 and ASTC. Whatever is enabled here decides what KTX2 textures are
+            // transcoded to at load time.
+            std::vector<wgpu::FeatureName> requiredFeatures;
+            for (wgpu::FeatureName feature : { wgpu::FeatureName::TextureCompressionBC,
+                     wgpu::FeatureName::TextureCompressionETC2,
+                     wgpu::FeatureName::TextureCompressionASTC })
+            {
+                if (g_Adapter.HasFeature(feature))
+                {
+                    requiredFeatures.push_back(feature);
+                }
+            }
+
+            if (requiredFeatures.empty())
+            {
+                Log::Warning() << " - No compressed texture formats are supported, textures will use more memory than intended.";
+            }
+            else
+            {
+                for (wgpu::FeatureName feature : requiredFeatures)
+                {
+                    Log::Info() << " - Enabling feature: " << magic_enum::enum_name(feature);
+                }
+            }
+
             wgpu::DeviceDescriptor deviceDescriptor{};
+            deviceDescriptor.requiredFeatureCount = requiredFeatures.size();
+            deviceDescriptor.requiredFeatures = requiredFeatures.data();
             deviceDescriptor.SetUncapturedErrorCallback(
                 [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
                     Log::Error() << "Uncaptured device error: " << magic_enum::enum_name(type)

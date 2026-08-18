@@ -178,6 +178,48 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann-json)
 
+# libktx provides KTX2 reading and Basis Universal transcoding at runtime.
+# It is pinned to the same version as the encoder vendored in tools/forge/bin/ktx,
+# so that what Forge writes and what the engine reads never drift apart.
+#
+# Only the read half is linked, via the separate ktx_read target - libktx has no
+# option to drop the writers from the main ktx target. That also keeps Ericsson's
+# ETC codec out of the binary, which is under a non-OSS license and is only
+# acceptable while it stays a build-time tool. It is reachable from ktx_read
+# through KTX_FEATURE_ETC_UNPACK, which is software ETC decoding for KTX1 files
+# on GPUs without ETC support and is not needed here, so that is turned off.
+#
+# KTX1 support is forced on despite nothing loading KTX1, because turning it off does
+# not link: texture.c still calls ktxTexture1_constructFromStreamAndHeader.
+#
+# libktx refuses to configure as a shared library under Emscripten. Nothing here
+# wants a shared one anyway, but an earlier dependency leaves BUILD_SHARED_LIBS on
+# when Dawn is not in the mix to turn it off, so it is forced for this fetch and
+# put back afterwards.
+set(PANDORA_BUILD_SHARED_LIBS_BACKUP ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
+set(KTX_FEATURE_KTX1 ON CACHE BOOL "" FORCE)
+set(KTX_FEATURE_ETC_UNPACK OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_DOC OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_LOADTEST_APPS OFF CACHE STRING "" FORCE)
+set(KTX_FEATURE_GL_UPLOAD OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_VK_UPLOAD OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_JNI OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_PY OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    ktx
+    GIT_REPOSITORY https://github.com/KhronosGroup/KTX-Software.git
+    GIT_TAG 936b655d10fe75f900967f524ba31005bebcbb47 # v4.4.2
+    GIT_PROGRESS TRUE
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext/ktx
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(ktx)
+set(BUILD_SHARED_LIBS ${PANDORA_BUILD_SHARED_LIBS_BACKUP} CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git

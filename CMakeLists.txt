@@ -62,6 +62,7 @@ target_compile_definitions(pandora PUBLIC
 target_link_libraries(pandora PUBLIC 
     freetype
     glm::glm
+    ktx_read
     magic_enum::magic_enum 
     nlohmann_json::nlohmann_json
     xxHash::xxhash
