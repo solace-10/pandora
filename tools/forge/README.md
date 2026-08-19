@@ -61,7 +61,6 @@ and how to update it.
 {
     "source": "textures/earth.png",
     "destination": "textures/earth.ktx2",
-    "width": 2048,
     "usage": "color"
 }
 ```
@@ -70,8 +69,15 @@ and how to update it.
 |---|---|---|
 | `width`, `height` | source size | Resamples the image. Giving only one preserves the aspect ratio |
 | `usage` | `color` | How many channels the texture keeps and what format it ends up in. See below |
-| `encoding` | `none` | `uastc` or `basis-lz` to apply GPU block compression. Only for `color` and `linear` |
-| `zstd` | none | Supercompression level, 1 to 22 |
+| `encoding` | `uastc` | Deviates from the default block compression. Only for `color` and `linear` |
+
+Most descriptors need nothing but `source`, `destination` and `usage`. There is
+no supercompression option: zstd is applied to everything that can take it, at a
+level fixed in `tool_texture.go`. It was never a per-asset decision - the level
+costs encode time and almost nothing else, since zstd decompresses at gigabytes
+per second whatever it was compressed at, and the encode is paid once by the
+cache. The one texture that gets no zstd is a `basis-lz` one, where `ktx` refuses
+it because BasisLZ already carries its own entropy coding.
 
 ### Usage
 
@@ -102,18 +108,27 @@ where BC7 would share endpoints across RGB and put Y in alpha.
 
 ### Encoding, for the four channel usages
 
-`encoding` and `zstd` default to off, which produces an uncompressed RGBA8 file.
-That is larger than the source PNG or JPEG, so anything shipping should set them.
-
 The engine transcodes a Basis Universal payload at load time to whatever block
-format the device supports, so one encoded file serves every platform. `uastc`
-keeps more quality and is the right choice for detailed colour maps; `basis-lz`
-produces far smaller files and suits textures where that matters more.
+format the device supports, so one encoded file serves every platform. `uastc` is
+the default and is what a texture should ship as unless there is a reason
+otherwise. There are two such reasons:
 
-Pair `uastc` with `zstd` - it relies on it, being otherwise a fixed byte per
-texel. Do **not** pair `basis-lz` with `zstd`: BasisLZ carries its own entropy
-coding, `ktx` rejects the combination outright, and Forge now fails the
-descriptor before spending any time on it.
+| `encoding` | Ships as | Choose it when |
+|---|---|---|
+| `uastc` *(default)* | UASTC + zstd, transcoded to BC7/ASTC/ETC2 | Anything the eye rests on |
+| `basis-lz` | ETC1S, transcoded to the same | The download matters more than the texture does |
+| `none` | Plain RGBA8 + zstd | Block compression artifacts would show |
+
+`basis-lz` is dramatically smaller and visibly worse - measured on this project's
+8K colour map, 1.94 MiB against UASTC's 15.4 MiB, and 33.8 dB against 48.5 dB.
+That is a poor trade for a hero texture and a good one for background detail, a
+decal, or anything only ever seen small.
+
+`none` is the odd one: it costs **four times the memory on the GPU**, because
+RGBA8 is four bytes per texel where every block format is one or less. It earns
+that only where block artifacts are unacceptable and the texture is small enough
+not to care - UI sprites, gradient ramps, lookup tables, font atlases. Note that
+it has to be asked for by name; leaving `encoding` out gives `uastc`.
 
 Note that block compression needs dimensions that are a multiple of 4. The engine
 falls back to uncompressed for a texture that is not, having logged a warning, so

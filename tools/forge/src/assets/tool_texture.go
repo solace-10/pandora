@@ -38,15 +38,11 @@ type textureOptions struct {
 	// than colour must be linear, or their values are gamma-mangled on load.
 	Usage string `json:"usage"`
 
-	// Encoding optionally applies GPU block compression, as a Basis Universal
-	// payload the engine transcodes to a device specific format on load. It
-	// defaults to none, which is only reasonable for a texture small enough that
-	// the encoding artifacts would cost more than the memory saves. It applies
-	// only to the four channel usages; the rest have a fixed output format.
+	// Encoding deviates from the block compression a four channel usage would
+	// otherwise get. Leaving it out is almost always right; see the constants
+	// below for the two reasons to set it. The one and two channel usages have a
+	// fixed output format and reject it outright.
 	Encoding string `json:"encoding"`
-
-	// Zstd optionally applies supercompression at the given level.
-	Zstd int `json:"zstd"`
 }
 
 const (
@@ -55,6 +51,32 @@ const (
 	usageLinear = "linear"
 	usageMask   = "mask"
 )
+
+const (
+	// encodingUASTC is the default for a four channel texture, and what the one
+	// and two channel usages pass through on their way to a block format.
+	encodingUASTC = "uastc"
+
+	// encodingBasisLZ trades quality for size, and only makes sense where the
+	// download matters more than the texture does - background detail, decals,
+	// anything the eye does not rest on. Measured on this project's colour map it
+	// is eight times smaller than UASTC and 15 dB worse.
+	encodingBasisLZ = "basis-lz"
+
+	// encodingNone ships plain RGBA8, which costs four times the memory on the
+	// GPU. It is right only where block compression artifacts would show and the
+	// texture is small enough not to care: UI, gradients, lookup tables.
+	encodingNone = "none"
+)
+
+// zstdLevel is the supercompression level every artifact that can take one gets.
+//
+// It is not a per-asset decision. The level costs encode time and almost nothing
+// else - decompression runs at gigabytes per second whatever it was compressed
+// at - and encode time is paid once, by the cache. 19 rather than 22 because 20
+// and above are zstd's "ultra" tier, which widens the decompression window and
+// so the memory a WASM heap has to find, in exchange for 0.2% on these textures.
+const zstdLevel = 19
 
 // texturePipeline is how a usage becomes ktx invocations. Both Compile and
 // Fingerprint go through it, so they cannot disagree about what a usage means.
@@ -78,26 +100,69 @@ type texturePipeline struct {
 	// and spends eight bits per texel whatever it is given, so it cannot even
 	// represent a mask more cheaply than a colour map.
 	transcodeTarget string
+
+	// encoding is what --encode receives once the usage's default has been
+	// applied. Empty ships plain texels.
+	encoding string
+
+	// zstd is the supercompression level, or zero for the BasisLZ case, where
+	// ktx refuses one because the payload already carries its own.
+	zstd int
 }
 
-func pipelineFor(usage string) texturePipeline {
-	switch usage {
-	case usageColor:
-		return texturePipeline{createFormat: "R8G8B8A8_SRGB", transferFunction: "srgb"}
+func pipelineFor(options textureOptions) texturePipeline {
+	pipeline := texturePipeline{zstd: zstdLevel}
 
+	switch options.Usage {
 	case usageMask:
 		// BC4 is half the memory of BC7 and gives the one channel it keeps the
 		// whole 4x4 block to itself, rather than sharing endpoints with RGB.
-		return texturePipeline{createFormat: "R8_UNORM", transferFunction: "linear", transcodeTarget: "bc4"}
+		pipeline.createFormat = "R8_UNORM"
+		pipeline.transferFunction = "linear"
+		pipeline.transcodeTarget = "bc4"
+		pipeline.encoding = encodingUASTC
 
 	case usageNormal:
 		// BC5 is two independent BC4 channels, which is both better precision for
 		// X and Y than BC7 can give them and the only target whose result reads
 		// back as .rg - BC7 would put X in RGB and Y in alpha.
-		return texturePipeline{createFormat: "R8G8B8A8_UNORM", transferFunction: "linear", normalMode: true, transcodeTarget: "bc5"}
+		pipeline.createFormat = "R8G8B8A8_UNORM"
+		pipeline.transferFunction = "linear"
+		pipeline.normalMode = true
+		pipeline.transcodeTarget = "bc5"
+		pipeline.encoding = encodingUASTC
+
+	case usageColor:
+		pipeline.createFormat = "R8G8B8A8_SRGB"
+		pipeline.transferFunction = "srgb"
+		pipeline.encoding = resolveEncoding(options.Encoding)
 
 	default:
-		return texturePipeline{createFormat: "R8G8B8A8_UNORM", transferFunction: "linear"}
+		pipeline.createFormat = "R8G8B8A8_UNORM"
+		pipeline.transferFunction = "linear"
+		pipeline.encoding = resolveEncoding(options.Encoding)
+	}
+
+	// ktx rejects the combination outright: BasisLZ brings its own entropy coding
+	// and there is nothing left for zstd to find.
+	if pipeline.encoding == encodingBasisLZ {
+		pipeline.zstd = 0
+	}
+
+	return pipeline
+}
+
+// resolveEncoding applies the default an omitted encoding stands for. Shipping
+// uncompressed is never what someone who left the field out meant, so the
+// default is the one worth shipping and 'none' has to be asked for.
+func resolveEncoding(encoding string) string {
+	switch encoding {
+	case "":
+		return encodingUASTC
+	case encodingNone:
+		return ""
+	default:
+		return encoding
 	}
 }
 
@@ -125,12 +190,17 @@ func (t *textureTool) Fingerprint(d *Descriptor) (string, error) {
 		return "", err
 	}
 
+	// The resolved pipeline is fingerprinted rather than the raw options, so that
+	// changing a default - or the zstd level - invalidates the cache by itself.
+	//
 	// The version prefix moved to 2 when usage started deciding the channel count
-	// and output format. Without that, an unchanged 'normal' descriptor would
-	// fingerprint identically while producing a completely different artifact,
-	// and every cached texture would be wrongly restored.
-	return fmt.Sprintf("texture/2 %s w=%d h=%d usage=%s encoding=%s zstd=%d",
-		version, options.Width, options.Height, options.Usage, options.Encoding, options.Zstd), nil
+	// and output format, and to 3 when the encoding gained a default. Without it
+	// an unchanged descriptor would fingerprint identically while producing a
+	// different artifact, and every cached texture would be wrongly restored.
+	pipeline := pipelineFor(options)
+
+	return fmt.Sprintf("texture/3 %s w=%d h=%d usage=%s encoding=%s zstd=%d",
+		version, options.Width, options.Height, options.Usage, pipeline.encoding, pipeline.zstd), nil
 }
 
 func (t *textureTool) Compile(job *Job) error {
@@ -144,7 +214,7 @@ func (t *textureTool) Compile(job *Job) error {
 		return err
 	}
 
-	pipeline := pipelineFor(options.Usage)
+	pipeline := pipelineFor(options)
 
 	// A usage with a transcode target ships the block format itself, which takes
 	// two passes: ktx create cannot write a BC format directly, but ktx transcode
@@ -187,18 +257,17 @@ func (t *textureTool) Compile(job *Job) error {
 		arguments = append(arguments, "--width", strconv.Itoa(width), "--height", strconv.Itoa(height))
 	}
 
-	if pipeline.transcodeTarget != "" {
-		// UASTC rather than basis-lz, because the transcode out of it into a block
-		// format is near-lossless where ETC1S would bake its own losses in first.
-		// No --zstd: the intermediate is about to be thrown away.
-		arguments = append(arguments, "--encode", "uastc")
-	} else {
-		if options.Encoding != "" && options.Encoding != "none" {
-			arguments = append(arguments, "--encode", options.Encoding)
-		}
-		if options.Zstd > 0 {
-			arguments = append(arguments, "--zstd", strconv.Itoa(options.Zstd))
-		}
+	if pipeline.encoding != "" {
+		// UASTC rather than basis-lz for a transcode target, because the step out of
+		// it into a block format is near-lossless where ETC1S would bake its own
+		// losses in first.
+		arguments = append(arguments, "--encode", pipeline.encoding)
+	}
+
+	// Supercompression waits for the transcode when there is one, as the
+	// intermediate is about to be thrown away.
+	if pipeline.zstd > 0 && pipeline.transcodeTarget == "" {
+		arguments = append(arguments, "--zstd", strconv.Itoa(pipeline.zstd))
 	}
 
 	arguments = append(arguments, job.SourcePath, createOutput)
@@ -212,8 +281,8 @@ func (t *textureTool) Compile(job *Job) error {
 	}
 
 	transcode := []string{"transcode", "--target", pipeline.transcodeTarget}
-	if options.Zstd > 0 {
-		transcode = append(transcode, "--zstd", strconv.Itoa(options.Zstd))
+	if pipeline.zstd > 0 {
+		transcode = append(transcode, "--zstd", strconv.Itoa(pipeline.zstd))
 	}
 	transcode = append(transcode, createOutput, job.OutputPath)
 
@@ -252,30 +321,21 @@ func parseTextureOptions(d *Descriptor) (textureOptions, error) {
 	}
 
 	switch options.Encoding {
-	case "", "none", "uastc", "basis-lz":
+	case "", encodingNone, encodingUASTC, encodingBasisLZ:
 	default:
-		return options, fmt.Errorf("unknown encoding '%s' (expected 'none', 'uastc' or 'basis-lz')", options.Encoding)
+		return options, fmt.Errorf("unknown encoding '%s' (expected '%s', '%s' or '%s')",
+			options.Encoding, encodingNone, encodingUASTC, encodingBasisLZ)
 	}
 
 	// A usage with a fixed output format leaves 'encoding' nothing to decide, so
 	// accepting one would only invite the belief that it did something.
-	if target := pipelineFor(options.Usage).transcodeTarget; target != "" && options.Encoding != "" {
+	if target := pipelineFor(options).transcodeTarget; target != "" && options.Encoding != "" {
 		return options, fmt.Errorf("usage '%s' does not take an 'encoding': it always produces %s",
 			options.Usage, strings.ToUpper(target))
 	}
 
-	// ktx rejects this combination outright, and it is clearer to say so before
-	// the build spends time encoding.
-	if options.Encoding == "basis-lz" && options.Zstd > 0 {
-		return options, fmt.Errorf("'basis-lz' cannot be combined with 'zstd', as it carries its own compression")
-	}
-
 	if options.Width < 0 || options.Height < 0 {
 		return options, fmt.Errorf("width and height must not be negative")
-	}
-
-	if options.Zstd < 0 || options.Zstd > 22 {
-		return options, fmt.Errorf("zstd level must be between 0 and 22, got %d", options.Zstd)
 	}
 
 	return options, nil
