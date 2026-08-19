@@ -52,6 +52,9 @@ TextureFormatInfo GetTextureFormatInfo(wgpu::TextureFormat format)
     case Format::RGBA8UnormSrgb:
         return TextureFormatInfo{ 1, 1, 4, false };
 
+    case Format::RG8Unorm:
+        return TextureFormatInfo{ 1, 1, 2, false };
+
     case Format::R8Unorm:
         return TextureFormatInfo{ 1, 1, 1, false };
 
@@ -66,10 +69,14 @@ TextureFormatInfo GetTextureFormatInfo(wgpu::TextureFormat format)
 wgpu::TextureFormat VkFormatToTextureFormat(uint32_t vkFormat)
 {
     // libktx reports the format as a VkFormat. Only the ones it can transcode Basis
-    // Universal payloads into are listed, plus plain RGBA8 for KTX2 files that carry
-    // uncompressed data. The values are from the Vulkan specification.
+    // Universal payloads into are listed, plus the uncompressed formats for KTX2
+    // files that carry plain texels. The values are from the Vulkan specification.
     switch (vkFormat)
     {
+    case 9:
+        return wgpu::TextureFormat::R8Unorm; // VK_FORMAT_R8_UNORM
+    case 16:
+        return wgpu::TextureFormat::RG8Unorm; // VK_FORMAT_R8G8_UNORM
     case 37:
         return wgpu::TextureFormat::RGBA8Unorm; // VK_FORMAT_R8G8B8A8_UNORM
     case 43:
@@ -134,6 +141,42 @@ wgpu::TextureFormat VkFormatToTextureFormat(uint32_t vkFormat)
 
     default:
         return wgpu::TextureFormat::Undefined;
+    }
+}
+
+std::optional<wgpu::FeatureName> RequiredFeatureFor(wgpu::TextureFormat format)
+{
+    // WebGPU gates each compressed family behind one feature covering all of its
+    // formats, so a device with BC7 also has BC4 and BC5, and a device with ETC2
+    // also has the EAC formats. Nothing here needs to test them individually.
+    const TextureFormatInfo info = GetTextureFormatInfo(format);
+    if (!info.isCompressed)
+    {
+        return std::nullopt;
+    }
+
+    using Format = wgpu::TextureFormat;
+    switch (format)
+    {
+    case Format::ASTC4x4Unorm:
+    case Format::ASTC4x4UnormSrgb:
+        return wgpu::FeatureName::TextureCompressionASTC;
+
+    case Format::ETC2RGB8Unorm:
+    case Format::ETC2RGB8UnormSrgb:
+    case Format::ETC2RGB8A1Unorm:
+    case Format::ETC2RGB8A1UnormSrgb:
+    case Format::ETC2RGBA8Unorm:
+    case Format::ETC2RGBA8UnormSrgb:
+    case Format::EACR11Unorm:
+    case Format::EACR11Snorm:
+    case Format::EACRG11Unorm:
+    case Format::EACRG11Snorm:
+        return wgpu::FeatureName::TextureCompressionETC2;
+
+    default:
+        // Everything else GetTextureFormatInfo reports as compressed is BC.
+        return wgpu::FeatureName::TextureCompressionBC;
     }
 }
 

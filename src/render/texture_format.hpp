@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -25,5 +26,12 @@ TextureFormatInfo GetTextureFormatInfo(wgpu::TextureFormat format);
 // Maps the Vulkan format libktx reports to its WebGPU equivalent, returning
 // Undefined for anything the engine has no format for.
 wgpu::TextureFormat VkFormatToTextureFormat(uint32_t vkFormat);
+
+// The device feature a format needs before a texture can be created with it, or
+// nothing for the formats every device is required to support.
+//
+// A file carrying an already compressed payload has no transcode step to pick a
+// supported format for it, so whoever loads one has to ask this first.
+std::optional<wgpu::FeatureName> RequiredFeatureFor(wgpu::TextureFormat format);
 
 } // namespace WingsOfSteel
