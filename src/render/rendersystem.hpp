@@ -57,7 +57,7 @@ public:
     static constexpr size_t MsaaSampleCount = 4;
 
 private:
-    void AcquireDevice(void (*callback)(wgpu::Device));
+    void AcquireDevice(void (*callback)());
     void InitializeInternal();
 
     void CreateGlobalUniforms();

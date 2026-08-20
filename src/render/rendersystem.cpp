@@ -41,6 +41,20 @@ RenderSystem::RenderSystem()
 
 RenderSystem::~RenderSystem()
 {
+    ClearRenderPasses();
+    m_pLightingSystem.reset();
+    m_pShaderEditor.reset();
+    m_pShaderCompiler.reset();
+    m_pVertexBufferSchemas.reset();
+    m_pMipLevelGenerator.reset();
+    m_GlobalUniformsBindGroup = nullptr;
+    m_GlobalUniformsBindGroupLayout = nullptr;
+    m_GlobalUniformsBuffer = nullptr;
+
+    g_Device = nullptr;
+    g_Adapter = nullptr;
+    g_Instance = nullptr;
+
     glfwTerminate();
 }
 
@@ -59,8 +73,7 @@ void RenderSystem::Initialize(OnRenderSystemInitializedCallback onInitializedCal
         exit(-1);
     }
 
-    AcquireDevice([](wgpu::Device device) {
-        g_Device = device;
+    AcquireDevice([]() {
         Log::Info() << "WebGPU device acquired.";
 
         if (!glfwInit())
@@ -163,7 +176,7 @@ bool RenderSystem::HasFeature(wgpu::FeatureName feature) const
     return g_Device && g_Device.HasFeature(feature);
 }
 
-void RenderSystem::AcquireDevice(void (*callback)(wgpu::Device))
+void RenderSystem::AcquireDevice(void (*callback)())
 {
     // Request the high performance device if possible, so we don't accidentally select an integrated GPU when
     // a dedicated GPU is available.
@@ -241,7 +254,8 @@ void RenderSystem::AcquireDevice(void (*callback)(wgpu::Device))
                         Log::Error() << "Failed to request device: " << std::string_view(message.data, message.length);
                         exit(-1);
                     }
-                    callback(std::move(device));
+                    g_Device = std::move(device);
+                    callback();
                 });
         });
 }

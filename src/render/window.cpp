@@ -82,6 +82,11 @@ Window::Window(const WindowSettings& windowSettings)
 
 Window::~Window()
 {
+    // The surface wraps the native window handle, so it has to go first.
+    m_MsaaColorTexture = ColorTexture();
+    m_DepthTexture = DepthTexture();
+    m_Surface = nullptr;
+
     glfwDestroyWindow(m_pWindow);
     m_pWindow = nullptr;
 }

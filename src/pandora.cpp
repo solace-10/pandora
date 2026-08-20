@@ -114,13 +114,16 @@ void Shutdown()
     g_GameShutdownCallback();
 
     // Although all the systems are unique pointers and will be cleaned up,
-    // this ensures they are shut down in a deterministic order.
+    // this ensures they are shut down in a deterministic order. Everything
+    // holding GPU resources or GLFW callbacks must go before the RenderSystem,
+    // whose destructor drops the WebGPU device and terminates GLFW.
+    g_pActiveScene.reset();
     g_pResourceSystem.reset();
+    g_pDebugRender.reset();
+    g_pImGuiSystem.reset();
     g_pInputSystem.reset();
     g_pWindow.reset();
-    g_pActiveScene.reset();
     g_pRenderSystem.reset();
-    g_pImGuiSystem.reset();
     g_pVFS.reset();
 }
 
