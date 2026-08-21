@@ -1,5 +1,15 @@
 include(FetchContent)
 
+# Every dependency below brings its own upstream CMakeLists, and between them they emit a dozen-odd
+# warnings nobody here can act on: CMP0115 in bullet3, pre-3.10 cmake_minimum_required in clipp,
+# freetype, glm and xxhash, syntax warnings in dawn. Consuming projects therefore configure with
+# -Wno-dev/-Wno-deprecated (in their presets) and promote the warnings back for their own
+# directories once this file has been included.
+#
+# It has to be done that way round rather than scoped here: cmake_diagnostic() only governs
+# diagnostics issued while a directory is being processed, and several of these - CMP0115 among them
+# - are issued at generate time, long after this file is done.
+
 message(STATUS "Pandora: fetching external dependencies...")
 
 set(FETCHCONTENT_QUIET OFF)
@@ -68,6 +78,12 @@ if(TARGET_PLATFORM_NATIVE)
 
     set(BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
     set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+    # bullet3 lists several sources without a file extension, which CMP0115 diagnoses. Leaving the
+    # policy unset gets the OLD behaviour anyway, so pinning it to OLD changes nothing except that
+    # CMake stops warning about it. Unlike the rest of the noise here this one has to be silenced by
+    # policy rather than by diagnostic state, because it is issued at generate time, where only the
+    # root diagnostic state is available. Cleared again below so it does not reach anything else.
+    set(CMAKE_POLICY_DEFAULT_CMP0115 OLD)
     FetchContent_Declare(
         bullet3
         GIT_REPOSITORY https://github.com/bulletphysics/bullet3.git
@@ -76,6 +92,7 @@ if(TARGET_PLATFORM_NATIVE)
         EXCLUDE_FROM_ALL
     )
     FetchContent_MakeAvailable(bullet3)
+    unset(CMAKE_POLICY_DEFAULT_CMP0115)
 endif()
 
 FetchContent_Declare(
@@ -114,6 +131,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(FastNoiseLite)
 
+# There is no harfbuzz in the emscripten sysroot, and freetype's FindHarfBuzz warns rather than
+# staying quiet about it. The web build was never getting harfbuzz anyway, so say so outright and
+# skip the search. Native builds find a real harfbuzz and keep using it.
+if(TARGET_PLATFORM_WEB)
+    set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+endif()
 FetchContent_Declare(
     freetype
     GIT_REPOSITORY https://github.com/freetype/freetype.git

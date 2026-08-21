@@ -1,7 +1,13 @@
 project(pandora)
 set(CMAKE_CXX_STANDARD 20)
 
+include("cmake/shared/Diagnostics.cmake")
 include("cmake/shared/FetchExternalDependencies.cmake")
+
+# Pandora is a consumer of its own dependencies, so it restores its warnings the same way the
+# top-level project does - see Diagnostics.cmake for what is being undone and why it has to be here
+# rather than before the include above.
+pandora_enable_project_diagnostics()
 
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}/src FILES ${SOURCE_FILES})
