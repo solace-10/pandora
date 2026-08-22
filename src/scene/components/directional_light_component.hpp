@@ -20,6 +20,11 @@ public:
     float GetAngle() const { return m_Angle; }
     void SetPitch(float pitchInDegrees);
     float GetPitch() const { return m_Pitch; }
+
+    // The direction the light comes *from*, as used in shaders: NdotL = dot(normal, direction).
+    // Angle and pitch are a way of authoring this by hand; a caller that already has the vector -
+    // anything driven by a real ephemeris, say - can set it directly and skip the round trip.
+    void SetDirection(const glm::vec3& direction);
     const glm::vec3& GetNormalizedDirection() const { return m_Direction; }
 
     const glm::vec3& GetColor() const { return m_Color; }

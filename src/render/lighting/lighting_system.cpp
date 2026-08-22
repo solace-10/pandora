@@ -84,8 +84,10 @@ void LightingSystem::DrawDebugUI()
                 directionalLightComponent.SetAngle(angle);
             }
 
+            // Negative pitch is a light below the horizontal, which is where anything driven by
+            // a real sun spends half the year.
             float pitch = m_DirectionalLight.Pitch;
-            if (ImGui::SliderFloat("Pitch", &pitch, 0.0f, 90.0f))
+            if (ImGui::SliderFloat("Pitch", &pitch, -90.0f, 90.0f))
             {
                 directionalLightComponent.SetPitch(pitch);
             }
