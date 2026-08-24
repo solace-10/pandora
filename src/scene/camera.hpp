@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/mat4x4.hpp>
+#include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
 
 namespace WingsOfSteel
@@ -18,6 +19,8 @@ public:
     float GetNearPlane() const;
     void SetFarPlane(float distance);
     float GetFarPlane() const;
+    // Degrees, both ways. The constructor takes them too; only m_Fov is kept in radians, which
+    // is what glm::perspectiveZO() wants.
     void SetFieldOfView(float degrees);
     float GetFieldOfView() const;
 
@@ -41,7 +44,7 @@ public:
 private:
     void CalculateProjectionMatrix();
 
-    float m_Fov = 45.0f;
+    float m_Fov = 0.785398f; // Radians. 45 degrees; every constructor overwrites it.
     float m_NearPlane = 0.01f;
     float m_FarPlane = 100.0f;
     glm::mat4 m_ViewMatrix{ 1.0f };
@@ -64,7 +67,7 @@ inline float Camera::GetFarPlane() const
 
 inline float Camera::GetFieldOfView() const
 {
-    return m_Fov;
+    return glm::degrees(m_Fov);
 }
 
 inline const glm::vec3& Camera::GetPosition() const

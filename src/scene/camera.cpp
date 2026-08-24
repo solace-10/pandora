@@ -9,7 +9,7 @@ namespace WingsOfSteel
 {
 
 Camera::Camera(float fov, float nearPlane, float farPlane)
-    : m_Fov(fov)
+    : m_Fov(glm::radians(fov))
     , m_NearPlane(nearPlane)
     , m_FarPlane(farPlane)
 {
