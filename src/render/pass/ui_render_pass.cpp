@@ -1,4 +1,4 @@
-#include "render/render_pass/ui_render_pass.hpp"
+#include "render/pass/ui_render_pass.hpp"
 
 #include "imgui/imgui_system.hpp"
 #include "render/debug_render.hpp"
@@ -11,11 +11,11 @@ namespace WingsOfSteel
 {
 
 UIRenderPass::UIRenderPass()
-: RenderPass("UI render pass")
+: Pass("UI render pass")
 {
 }
 
-void UIRenderPass::Render(wgpu::CommandEncoder& encoder)
+void UIRenderPass::Execute(wgpu::CommandEncoder& encoder)
 {
     wgpu::SurfaceTexture surfaceTexture;
     GetWindow()->GetSurface().GetCurrentTexture(&surfaceTexture);

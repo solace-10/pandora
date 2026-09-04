@@ -17,7 +17,7 @@ namespace WingsOfSteel
 DECLARE_SMART_PTR(DebugRender);
 DECLARE_SMART_PTR(LightingSystem);
 DECLARE_SMART_PTR(MipLevelGenerator);
-DECLARE_SMART_PTR(RenderPass);
+DECLARE_SMART_PTR(Pass);
 DECLARE_SMART_PTR(ShaderCompiler);
 DECLARE_SMART_PTR(ShaderEditor);
 DECLARE_SMART_PTR(VertexBufferSchemas);
@@ -33,10 +33,11 @@ public:
     void Initialize(OnRenderSystemInitializedCallback onInitializedCallback);
     void Update();
 
-    void AddRenderPass(RenderPassSharedPtr pRenderPass);
-    const std::list<RenderPassSharedPtr>& GetRenderPasses() const;
-    RenderPassSharedPtr GetRenderPass(const std::string& name) const;
-    void ClearRenderPasses();
+    void AddPass(PassSharedPtr pPass);
+    void RemovePass(const PassSharedPtr& pPass);
+    const std::list<PassSharedPtr>& GetPasses() const;
+    PassSharedPtr GetPass(const std::string& name) const;
+    void ClearPasses();
 
     wgpu::Instance& GetInstance() const;
     wgpu::Adapter& GetAdapter() const;
@@ -84,7 +85,7 @@ private:
     ShaderCompilerUniquePtr m_pShaderCompiler;
     ShaderEditorUniquePtr m_pShaderEditor;
 
-    std::list<RenderPassSharedPtr> m_RenderPasses;
+    std::list<PassSharedPtr> m_Passes;
     VertexBufferSchemasUniquePtr m_pVertexBufferSchemas;
 
     LightingSystemUniquePtr m_pLightingSystem;

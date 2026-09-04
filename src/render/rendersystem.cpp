@@ -12,8 +12,8 @@
 #include "pandora.hpp"
 #include "render/lighting/lighting_system.hpp"
 #include "render/mip_level_generator.hpp"
-#include "render/render_pass/base_render_pass.hpp"
-#include "render/render_pass/ui_render_pass.hpp"
+#include "render/pass/base_render_pass.hpp"
+#include "render/pass/ui_render_pass.hpp"
 #include "render/shader_compiler.hpp"
 #include "render/shader_editor.hpp"
 #include "render/vertex_buffer_schemas.hpp"
@@ -41,7 +41,7 @@ RenderSystem::RenderSystem()
 
 RenderSystem::~RenderSystem()
 {
-    ClearRenderPasses();
+    ClearPasses();
     m_pLightingSystem.reset();
     m_pShaderEditor.reset();
     m_pShaderCompiler.reset();
@@ -98,8 +98,8 @@ void RenderSystem::InitializeInternal()
     m_pShaderEditor = std::make_unique<ShaderEditor>();
     m_pLightingSystem = std::make_unique<LightingSystem>();
 
-    AddRenderPass(std::make_shared<BaseRenderPass>());
-    AddRenderPass(std::make_shared<UIRenderPass>());
+    AddPass(std::make_shared<BaseRenderPass>());
+    AddPass(std::make_shared<UIRenderPass>());
 }
 
 void RenderSystem::Update()
@@ -117,9 +117,9 @@ void RenderSystem::Update()
     };
     wgpu::CommandEncoder encoder = GetDevice().CreateCommandEncoder(&commandEncoderDescriptor);
 
-    for (auto& pRenderPass : m_RenderPasses)
+    for (auto& pPass : m_Passes)
     {
-        pRenderPass->Render(encoder);
+        pPass->Execute(encoder);
     }
 
     wgpu::CommandBufferDescriptor commandBufferDescriptor{
@@ -129,28 +129,35 @@ void RenderSystem::Update()
     GetDevice().GetQueue().Submit(1, &commands);
 }
 
-void RenderSystem::AddRenderPass(RenderPassSharedPtr pRenderPass)
+void RenderSystem::AddPass(PassSharedPtr pPass)
 {
-    m_RenderPasses.push_back(pRenderPass);
+    m_Passes.push_back(pPass);
 }
 
-const std::list<RenderPassSharedPtr>& RenderSystem::GetRenderPasses() const
+// Passes owned by a scene system must be withdrawn when that system goes away, as the
+// pass list outlives any individual scene.
+void RenderSystem::RemovePass(const PassSharedPtr& pPass)
 {
-    return m_RenderPasses;
+    m_Passes.remove(pPass);
 }
 
-void RenderSystem::ClearRenderPasses()
+const std::list<PassSharedPtr>& RenderSystem::GetPasses() const
 {
-    m_RenderPasses.clear();
+    return m_Passes;
 }
 
-RenderPassSharedPtr RenderSystem::GetRenderPass(const std::string& name) const
+void RenderSystem::ClearPasses()
 {
-    for (auto& pRenderPass : m_RenderPasses)
+    m_Passes.clear();
+}
+
+PassSharedPtr RenderSystem::GetPass(const std::string& name) const
+{
+    for (auto& pPass : m_Passes)
     {
-        if (pRenderPass->GetName() == name)
+        if (pPass->GetName() == name)
         {
-            return pRenderPass;
+            return pPass;
         }
     }
     return nullptr;

@@ -1,4 +1,4 @@
-#include "render/render_pass/base_render_pass.hpp"
+#include "render/pass/base_render_pass.hpp"
 
 #include "render/rendersystem.hpp"
 #include "render/window.hpp"
@@ -12,11 +12,11 @@ namespace WingsOfSteel
 {
 
 BaseRenderPass::BaseRenderPass()
-: RenderPass("Base render pass")
+: Pass("Base render pass")
 {
 }
 
-void BaseRenderPass::Render(wgpu::CommandEncoder& encoder)
+void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
 {
     wgpu::SurfaceTexture surfaceTexture;
     GetWindow()->GetSurface().GetCurrentTexture(&surfaceTexture);
