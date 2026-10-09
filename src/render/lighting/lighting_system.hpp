@@ -39,6 +39,9 @@ public:
     // In stops: the scene is scaled by 2^exposure before it is tonemapped.
     float GetExposure() const;
 
+    // How much of the blurred scene is mixed into it; 0 turns bloom off.
+    float GetBloomStrength() const;
+
 private:
     void DrawDebugGizmo();
 
@@ -49,6 +52,7 @@ private:
     EntityWeakPtr m_pDirectionalLightEntity;
 
     float m_Exposure{ 0.0f };
+    float m_BloomStrength{ 0.04f };
 };
 
 } // namespace WingsOfSteel

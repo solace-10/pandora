@@ -129,6 +129,7 @@ void LightingSystem::DrawDebugUI()
 
         ImGui::SeparatorText("Camera");
         ImGui::SliderFloat("Exposure (EV)", &m_Exposure, -10.0f, 10.0f);
+        ImGui::SliderFloat("Bloom strength", &m_BloomStrength, 0.0f, 1.0f);
     }
     ImGui::End();
 }
@@ -146,6 +147,11 @@ const DirectionalLight& LightingSystem::GetDirectionalLight() const
 float LightingSystem::GetExposure() const
 {
     return m_Exposure;
+}
+
+float LightingSystem::GetBloomStrength() const
+{
+    return m_BloomStrength;
 }
 
 void LightingSystem::DrawDebugGizmo()

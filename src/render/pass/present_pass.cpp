@@ -1,7 +1,9 @@
 #include "render/pass/present_pass.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 
 #include "pandora.hpp"
 #include "render/lighting/lighting_system.hpp"
@@ -11,18 +13,84 @@
 namespace WingsOfSteel
 {
 
-// Embedded rather than loaded from /shaders, which would have every game ship its own copy.
-static const char* sPresentShader = R"(
-@group(0) @binding(0) var sceneTexture: texture_2d<f32>;
-@group(0) @binding(1) var<uniform> exposure: f32;
-@group(0) @binding(2) var overlayTexture: texture_2d<f32>;
+static constexpr uint32_t kBloomLevelCount = 6;
 
-// One triangle large enough to cover the screen.
-@vertex fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f
+// The shaders are embedded rather than loaded from /shaders, which would have every game ship its
+// own copy.
+static const char* sFullscreenTriangleShader = R"(
+struct VertexOutput
+{
+    @builtin(position) position: vec4f,
+    @location(0) uv: vec2f
+};
+
+// One triangle large enough to cover the target.
+@vertex fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput
 {
     let xy = vec2f(f32((vertexIndex << 1u) & 2u), f32(vertexIndex & 2u));
-    return vec4f(xy * 2.0 - 1.0, 0.0, 1.0);
+    var out: VertexOutput;
+    out.position = vec4f(xy * 2.0 - 1.0, 0.0, 1.0);
+    out.uv = vec2f(xy.x, 1.0 - xy.y);
+    return out;
 }
+)";
+
+// The filters from Jimenez, "Next Generation Post Processing in Call of Duty: Advanced Warfare"
+// (SIGGRAPH 2014).
+static const char* sBloomShader = R"(
+@group(0) @binding(0) var source: texture_2d<f32>;
+@group(0) @binding(1) var sourceSampler: sampler;
+
+fn tap(uv: vec2f, x: f32, y: f32) -> vec3f
+{
+    let texelSize = 1.0 / vec2f(textureDimensions(source));
+    return textureSampleLevel(source, sourceSampler, uv + vec2f(x, y) * texelSize, 0.0).rgb;
+}
+
+@fragment fn downsampleMain(in: VertexOutput) -> @location(0) vec4f
+{
+    let a = tap(in.uv, -2.0, -2.0);
+    let b = tap(in.uv, 0.0, -2.0);
+    let c = tap(in.uv, 2.0, -2.0);
+    let d = tap(in.uv, -2.0, 0.0);
+    let e = tap(in.uv, 0.0, 0.0);
+    let f = tap(in.uv, 2.0, 0.0);
+    let g = tap(in.uv, -2.0, 2.0);
+    let h = tap(in.uv, 0.0, 2.0);
+    let i = tap(in.uv, 2.0, 2.0);
+    let j = tap(in.uv, -1.0, -1.0);
+    let k = tap(in.uv, 1.0, -1.0);
+    let l = tap(in.uv, -1.0, 1.0);
+    let m = tap(in.uv, 1.0, 1.0);
+
+    // Five overlapping 2x2 boxes: the centre one carries half the weight, the four corner ones the rest.
+    let color = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
+    return vec4f(color, 1.0);
+}
+
+// A 3x3 tent over the smaller level. The blend state adds it onto the larger one.
+@fragment fn upsampleMain(in: VertexOutput) -> @location(0) vec4f
+{
+    let corners = tap(in.uv, -1.0, -1.0) + tap(in.uv, 1.0, -1.0) + tap(in.uv, -1.0, 1.0) + tap(in.uv, 1.0, 1.0);
+    let edges = tap(in.uv, 0.0, -1.0) + tap(in.uv, -1.0, 0.0) + tap(in.uv, 1.0, 0.0) + tap(in.uv, 0.0, 1.0);
+    return vec4f((corners + edges * 2.0 + tap(in.uv, 0.0, 0.0) * 4.0) / 16.0, 1.0);
+}
+)";
+
+static const char* sPresentShader = R"(
+struct Settings
+{
+    exposure: f32,
+    bloomStrength: f32,
+    // The upsample adds every level together; this turns the sum back into an average.
+    bloomScale: f32
+};
+
+@group(0) @binding(0) var sceneTexture: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> settings: Settings;
+@group(0) @binding(2) var overlayTexture: texture_2d<f32>;
+@group(0) @binding(3) var bloomTexture: texture_2d<f32>;
+@group(0) @binding(4) var bloomSampler: sampler;
 
 // Khronos PBR Neutral, without its toe. The toe subtracts up to 0.04 from every channel, which suits
 // a lit product but would roughly halve the brightness of a day side that sits around 0.05.
@@ -53,11 +121,13 @@ fn linearToSrgb(linear: vec3f) -> vec3f
     return select(higher, lower, cutoff);
 }
 
-// The scene and the surface are the same size, so this is a texel for texel copy.
-@fragment fn fragmentMain(@builtin(position) position: vec4f) -> @location(0) vec4f
+@fragment fn presentMain(in: VertexOutput) -> @location(0) vec4f
 {
-    let texel = vec2u(position.xy);
-    let color = linearToSrgb(tonemap(textureLoad(sceneTexture, texel, 0).rgb * exposure));
+    // The scene and the overlay are the surface's size, so they are read texel for texel.
+    let texel = vec2u(in.position.xy);
+    let scene = textureLoad(sceneTexture, texel, 0).rgb;
+    let bloom = textureSampleLevel(bloomTexture, bloomSampler, in.uv, 0.0).rgb * settings.bloomScale;
+    let color = linearToSrgb(tonemap(mix(scene, bloom, settings.bloomStrength) * settings.exposure));
     let overlay = textureLoad(overlayTexture, texel, 0);
     return vec4f(color * (1.0 - overlay.a) + overlay.rgb, 1.0);
 }
@@ -74,20 +144,36 @@ void PresentPass::Execute(wgpu::CommandEncoder& encoder)
     // constructed before the window, whose surface format the pipeline needs.
     if (!m_Pipeline)
     {
-        CreateRenderPipeline();
+        CreateRenderPipelines();
     }
 
-    const float exposure = std::exp2(GetRenderSystem()->GetLightingSystem()->GetExposure());
-    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_ExposureBuffer, 0, &exposure, sizeof(exposure));
+    UpdateBloomTexture();
+
+    const LightingSystem* pLightingSystem = GetRenderSystem()->GetLightingSystem();
+    const float bloomStrength = pLightingSystem->GetBloomStrength();
+    if (bloomStrength > 0.0f)
+    {
+        RenderBloom(encoder);
+    }
+
+    const std::array<float, 4> settings{
+        std::exp2(pLightingSystem->GetExposure()),
+        bloomStrength,
+        1.0f / static_cast<float>(m_BloomLevelViews.size()),
+        0.0f
+    };
+    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_SettingsBuffer, 0, settings.data(), sizeof(settings));
 
     wgpu::SurfaceTexture surfaceTexture;
     GetWindow()->GetSurface().GetCurrentTexture(&surfaceTexture);
 
-    // Rebuilt every frame, as resizing the window replaces the scene texture.
-    std::array<wgpu::BindGroupEntry, 3> bindGroupEntries{ {
+    // Rebuilt every frame, as resizing the window replaces the textures.
+    std::array<wgpu::BindGroupEntry, 5> bindGroupEntries{ {
         { .binding = 0, .textureView = GetWindow()->GetSceneColorTexture().GetTextureView() },
-        { .binding = 1, .buffer = m_ExposureBuffer, .size = sizeof(float) },
+        { .binding = 1, .buffer = m_SettingsBuffer, .size = sizeof(settings) },
         { .binding = 2, .textureView = GetWindow()->GetOverlayColorTexture().GetTextureView() },
+        { .binding = 3, .textureView = m_BloomLevelViews[0] },
+        { .binding = 4, .sampler = m_Sampler },
     } };
 
     wgpu::BindGroupDescriptor bindGroupDescriptor{
@@ -116,44 +202,148 @@ void PresentPass::Execute(wgpu::CommandEncoder& encoder)
     renderPass.End();
 }
 
-void PresentPass::CreateRenderPipeline()
+void PresentPass::CreateRenderPipelines()
 {
     wgpu::Device device = GetRenderSystem()->GetDevice();
 
-    wgpu::ShaderSourceWGSL wgslDesc{};
-    wgslDesc.code = sPresentShader;
+    auto createModule = [&device](const char* pLabel, const char* pFragmentCode) {
+        const std::string code = std::string(sFullscreenTriangleShader) + pFragmentCode;
+        wgpu::ShaderSourceWGSL wgslDesc{};
+        wgslDesc.code = code.c_str();
 
-    wgpu::ShaderModuleDescriptor shaderModuleDescriptor{
-        .nextInChain = &wgslDesc,
-        .label = "Present shader"
-    };
-    wgpu::ShaderModule shaderModule = device.CreateShaderModule(&shaderModuleDescriptor);
-
-    wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetSurfaceFormat()
-    };
-
-    wgpu::FragmentState fragmentState{
-        .module = shaderModule,
-        .targetCount = 1,
-        .targets = &colorTargetState
+        wgpu::ShaderModuleDescriptor shaderModuleDescriptor{
+            .nextInChain = &wgslDesc,
+            .label = pLabel
+        };
+        return device.CreateShaderModule(&shaderModuleDescriptor);
     };
 
-    wgpu::RenderPipelineDescriptor descriptor{
-        .label = "Present pipeline",
-        .vertex = {
-            .module = shaderModule },
-        .fragment = &fragmentState
+    auto createPipeline = [&device](const char* pLabel, const wgpu::ShaderModule& module, const char* pEntryPoint, wgpu::TextureFormat format, const wgpu::BlendState* pBlendState = nullptr) {
+        wgpu::ColorTargetState colorTargetState{
+            .format = format,
+            .blend = pBlendState
+        };
+
+        wgpu::FragmentState fragmentState{
+            .module = module,
+            .entryPoint = pEntryPoint,
+            .targetCount = 1,
+            .targets = &colorTargetState
+        };
+
+        wgpu::RenderPipelineDescriptor descriptor{
+            .label = pLabel,
+            .vertex = {
+                .module = module,
+                .entryPoint = "vertexMain" },
+            .fragment = &fragmentState
+        };
+        return device.CreateRenderPipeline(&descriptor);
     };
 
-    m_Pipeline = device.CreateRenderPipeline(&descriptor);
+    const wgpu::ShaderModule presentModule = createModule("Present shader", sPresentShader);
+    m_Pipeline = createPipeline("Present pipeline", presentModule, "presentMain", GetWindow()->GetSurfaceFormat());
+
+    const wgpu::ShaderModule bloomModule = createModule("Bloom shader", sBloomShader);
+    const wgpu::TextureFormat bloomFormat = GetWindow()->GetSceneFormat();
+    const wgpu::BlendState additive{
+        .color = { .operation = wgpu::BlendOperation::Add, .srcFactor = wgpu::BlendFactor::One, .dstFactor = wgpu::BlendFactor::One },
+        .alpha = { .operation = wgpu::BlendOperation::Add, .srcFactor = wgpu::BlendFactor::One, .dstFactor = wgpu::BlendFactor::One }
+    };
+    m_DownsamplePipeline = createPipeline("Bloom downsample pipeline", bloomModule, "downsampleMain", bloomFormat);
+    m_UpsamplePipeline = createPipeline("Bloom upsample pipeline", bloomModule, "upsampleMain", bloomFormat, &additive);
+
+    wgpu::SamplerDescriptor samplerDescriptor{
+        .magFilter = wgpu::FilterMode::Linear,
+        .minFilter = wgpu::FilterMode::Linear
+    };
+    m_Sampler = device.CreateSampler(&samplerDescriptor);
 
     wgpu::BufferDescriptor bufferDescriptor{
-        .label = "Present exposure buffer",
+        .label = "Present settings buffer",
         .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
-        .size = sizeof(float)
+        .size = 4 * sizeof(float)
     };
-    m_ExposureBuffer = device.CreateBuffer(&bufferDescriptor);
+    m_SettingsBuffer = device.CreateBuffer(&bufferDescriptor);
+}
+
+void PresentPass::UpdateBloomTexture()
+{
+    const uint32_t width = std::max(1u, GetWindow()->GetWidth() / 2);
+    const uint32_t height = std::max(1u, GetWindow()->GetHeight() / 2);
+    if (m_BloomTexture && m_BloomTexture.GetWidth() == width && m_BloomTexture.GetHeight() == height)
+    {
+        return;
+    }
+
+    const uint32_t levelCount = std::min(kBloomLevelCount, static_cast<uint32_t>(std::log2(std::max(width, height))) + 1);
+    wgpu::TextureDescriptor textureDescriptor{
+        .label = "Bloom texture",
+        .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
+        .size = { .width = width, .height = height },
+        .format = GetWindow()->GetSceneFormat(),
+        .mipLevelCount = levelCount
+    };
+    m_BloomTexture = GetRenderSystem()->GetDevice().CreateTexture(&textureDescriptor);
+
+    m_BloomLevelViews.clear();
+    for (uint32_t level = 0; level < levelCount; level++)
+    {
+        wgpu::TextureViewDescriptor viewDescriptor{
+            .baseMipLevel = level,
+            .mipLevelCount = 1
+        };
+        m_BloomLevelViews.push_back(m_BloomTexture.CreateView(&viewDescriptor));
+    }
+}
+
+void PresentPass::RenderBloom(wgpu::CommandEncoder& encoder)
+{
+    const size_t levelCount = m_BloomLevelViews.size();
+
+    DrawFullscreen(encoder, m_DownsamplePipeline, m_BloomLevelViews[0], wgpu::LoadOp::Clear, GetWindow()->GetSceneColorTexture().GetTextureView());
+    for (size_t level = 1; level < levelCount; level++)
+    {
+        DrawFullscreen(encoder, m_DownsamplePipeline, m_BloomLevelViews[level], wgpu::LoadOp::Clear, m_BloomLevelViews[level - 1]);
+    }
+
+    for (size_t level = levelCount - 1; level > 0; level--)
+    {
+        DrawFullscreen(encoder, m_UpsamplePipeline, m_BloomLevelViews[level - 1], wgpu::LoadOp::Load, m_BloomLevelViews[level]);
+    }
+}
+
+void PresentPass::DrawFullscreen(wgpu::CommandEncoder& encoder, const wgpu::RenderPipeline& pipeline, const wgpu::TextureView& target, wgpu::LoadOp loadOp, const wgpu::TextureView& source)
+{
+    std::array<wgpu::BindGroupEntry, 2> bindGroupEntries{ {
+        { .binding = 0, .textureView = source },
+        { .binding = 1, .sampler = m_Sampler },
+    } };
+
+    wgpu::BindGroupDescriptor bindGroupDescriptor{
+        .layout = pipeline.GetBindGroupLayout(0),
+        .entryCount = bindGroupEntries.size(),
+        .entries = bindGroupEntries.data()
+    };
+    wgpu::BindGroup bindGroup = GetRenderSystem()->GetDevice().CreateBindGroup(&bindGroupDescriptor);
+
+    wgpu::RenderPassColorAttachment colorAttachment{
+        .view = target,
+        .loadOp = loadOp,
+        .storeOp = wgpu::StoreOp::Store,
+        .clearValue = wgpu::Color{ 0.0, 0.0, 0.0, 0.0 }
+    };
+
+    wgpu::RenderPassDescriptor renderPassDescriptor{
+        .colorAttachmentCount = 1,
+        .colorAttachments = &colorAttachment
+    };
+
+    wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderPassDescriptor);
+    renderPass.SetPipeline(pipeline);
+    renderPass.SetBindGroup(0, bindGroup);
+    renderPass.Draw(3);
+    renderPass.End();
 }
 
 } // namespace WingsOfSteel
