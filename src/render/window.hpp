@@ -18,13 +18,17 @@ public:
     ~Window();
 
     wgpu::Surface GetSurface() const;
-    wgpu::TextureFormat GetTextureFormat() const;
+    wgpu::TextureFormat GetSurfaceFormat() const;
+    wgpu::TextureFormat GetSceneFormat() const;
     GLFWwindow* GetRawWindow() const;
     const DepthTexture& GetDepthTexture() const;
     DepthTexture& GetDepthTexture();
     uint32_t GetWidth() const;
     uint32_t GetHeight() const;
     ColorTexture& GetMsaaColorTexture();
+    ColorTexture& GetSceneColorTexture();
+    ColorTexture& GetOverlayMsaaColorTexture();
+    ColorTexture& GetOverlayColorTexture();
     void SetVSyncEnabled(bool enabled);
     bool IsVSyncEnabled() const;
 
@@ -40,6 +44,9 @@ private:
     uint32_t m_Height{ 0 };
     DepthTexture m_DepthTexture;
     ColorTexture m_MsaaColorTexture;
+    ColorTexture m_SceneColorTexture;
+    ColorTexture m_OverlayMsaaColorTexture;
+    ColorTexture m_OverlayColorTexture;
     bool m_VSyncEnabled = true;
     std::string m_Title;
 };
@@ -49,9 +56,16 @@ inline wgpu::Surface Window::GetSurface() const
     return m_Surface;
 }
 
-inline wgpu::TextureFormat Window::GetTextureFormat() const
+inline wgpu::TextureFormat Window::GetSurfaceFormat() const
 {
     return m_Format;
+}
+
+// Scene pipelines render here rather than to the surface, so that values above 1.0 survive
+// until the present pass encodes them for display.
+inline wgpu::TextureFormat Window::GetSceneFormat() const
+{
+    return wgpu::TextureFormat::RGBA16Float;
 }
 
 inline GLFWwindow* Window::GetRawWindow() const
@@ -80,5 +94,11 @@ inline uint32_t Window::GetHeight() const
 }
 
 inline ColorTexture& Window::GetMsaaColorTexture() { return m_MsaaColorTexture; }
+inline ColorTexture& Window::GetSceneColorTexture() { return m_SceneColorTexture; }
+
+// For anything that must be hidden by the scene's depth but kept out of tonemapping. It is in the
+// surface format and premultiplied, and PresentPass composites it over the tonemapped scene.
+inline ColorTexture& Window::GetOverlayMsaaColorTexture() { return m_OverlayMsaaColorTexture; }
+inline ColorTexture& Window::GetOverlayColorTexture() { return m_OverlayColorTexture; }
 
 } // namespace WingsOfSteel

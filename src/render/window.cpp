@@ -84,6 +84,9 @@ Window::~Window()
 {
     // The surface wraps the native window handle, so it has to go first.
     m_MsaaColorTexture = ColorTexture();
+    m_SceneColorTexture = ColorTexture();
+    m_OverlayMsaaColorTexture = ColorTexture();
+    m_OverlayColorTexture = ColorTexture();
     m_DepthTexture = DepthTexture();
     m_Surface = nullptr;
 
@@ -128,8 +131,8 @@ void Window::ConfigureSurface()
         wgpu::SurfaceCapabilities capabilities;
         m_Surface.GetCapabilities(GetRenderSystem()->GetAdapter(), &capabilities);
 
-        // Ideally we'd use BGRA8UnormSrgb for automatic conversion to sRGB, but glfw::CreateSurfaceForWindow
-        // always creates a surface in BGRA8Unorm.
+        // Not BGRA8UnormSrgb: glfw::CreateSurfaceForWindow always creates a surface in BGRA8Unorm,
+        // and PresentPass encodes the scene for display itself.
         m_Format = wgpu::TextureFormat::BGRA8Unorm;
         bool formatAvailable = false;
         for (int index = 0; index < capabilities.formatCount; index++)
@@ -165,7 +168,10 @@ void Window::ConfigureSurface()
     m_Surface.Configure(&config);
 
     m_DepthTexture = DepthTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, std::string("Window depth buffer"));
-    m_MsaaColorTexture = ColorTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, m_Format, RenderSystem::MsaaSampleCount, std::string("Window MSAA color buffer"));
+    m_MsaaColorTexture = ColorTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, GetSceneFormat(), RenderSystem::MsaaSampleCount, std::string("Window MSAA color buffer"));
+    m_SceneColorTexture = ColorTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, GetSceneFormat(), 1, std::string("Window scene color buffer"));
+    m_OverlayMsaaColorTexture = ColorTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, m_Format, RenderSystem::MsaaSampleCount, std::string("Window overlay MSAA color buffer"));
+    m_OverlayColorTexture = ColorTexture(GetRenderSystem()->GetDevice(), m_Width, m_Height, m_Format, 1, std::string("Window overlay color buffer"));
 }
 
 void Window::SetVSyncEnabled(bool enabled)

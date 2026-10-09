@@ -13,6 +13,7 @@
 #include "render/lighting/lighting_system.hpp"
 #include "render/mip_level_generator.hpp"
 #include "render/pass/base_render_pass.hpp"
+#include "render/pass/present_pass.hpp"
 #include "render/pass/ui_render_pass.hpp"
 #include "render/shader_compiler.hpp"
 #include "render/shader_editor.hpp"
@@ -99,6 +100,7 @@ void RenderSystem::InitializeInternal()
     m_pLightingSystem = std::make_unique<LightingSystem>();
 
     AddPass(std::make_shared<BaseRenderPass>());
+    AddPass(std::make_shared<PresentPass>());
     AddPass(std::make_shared<UIRenderPass>());
 }
 
@@ -344,11 +346,11 @@ void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
     m_GlobalUniforms.windowHeight = static_cast<float>(GetWindow()->GetHeight());
 
     const DirectionalLight& directionalLight = GetLightingSystem()->GetDirectionalLight();
-    m_GlobalUniforms.directionalLightColor = glm::vec4(directionalLight.Color, 1.0f); // Needs to be a vec4 for alignment. alpha set to 1.0 to ensure any multiplications in the shader are correct.
+    m_GlobalUniforms.directionalLightColor = glm::vec4(directionalLight.Color * directionalLight.Intensity, 1.0f); // Needs to be a vec4 for alignment. alpha set to 1.0 to ensure any multiplications in the shader are correct.
     m_GlobalUniforms.directionalLightDirection = glm::vec4(directionalLight.Direction, 0.0f); // Needs to be a vec4 for alignment. w set to 0.0 not to affect normalization.
 
     const AmbientLight& ambientLight = GetLightingSystem()->GetAmbientLight();
-    m_GlobalUniforms.ambientLightColor = glm::vec4(ambientLight.Color, 1.0f);
+    m_GlobalUniforms.ambientLightColor = glm::vec4(ambientLight.Color * ambientLight.Intensity, 1.0f);
 
     GetDevice().GetQueue().WriteBuffer(m_GlobalUniformsBuffer, 0, &m_GlobalUniforms, sizeof(GlobalUniforms));
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);

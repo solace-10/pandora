@@ -429,7 +429,7 @@ void SeaRenderSystem::CreateRenderPipeline()
     };
 
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat(),
+        .format = GetWindow()->GetSceneFormat(),
         .blend = &blendState
     };
 

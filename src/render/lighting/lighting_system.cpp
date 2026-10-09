@@ -34,6 +34,7 @@ void LightingSystem::Update()
     auto directionalLightView = registry.view<DirectionalLightComponent>();
     directionalLightView.each([this](const auto entityHandle, DirectionalLightComponent& directionalLightComponent) {
         m_DirectionalLight.Color = directionalLightComponent.GetColor();
+        m_DirectionalLight.Intensity = directionalLightComponent.GetIntensity();
         m_DirectionalLight.Direction = directionalLightComponent.GetNormalizedDirection();
         m_DirectionalLight.Angle = directionalLightComponent.GetAngle();
         m_DirectionalLight.Pitch = directionalLightComponent.GetPitch();
@@ -47,6 +48,7 @@ void LightingSystem::Update()
     auto ambientLightView = registry.view<AmbientLightComponent>();
     ambientLightView.each([this](const auto entityHandle, AmbientLightComponent& ambientLightComponent) {
         m_AmbientLight.Color = ambientLightComponent.GetColor();
+        m_AmbientLight.Intensity = ambientLightComponent.GetIntensity();
 
         if (IsDebugUIVisible())
         {
@@ -78,6 +80,12 @@ void LightingSystem::DrawDebugUI()
                 directionalLightComponent.SetColor(color);
             }
 
+            float intensity = directionalLightComponent.GetIntensity();
+            if (ImGui::DragFloat("DiffuseIntensity", &intensity, 0.01f, 0.0f, 1000.0f))
+            {
+                directionalLightComponent.SetIntensity(intensity);
+            }
+
             float angle = m_DirectionalLight.Angle;
             if (ImGui::SliderFloat("Angle", &angle, 0.0f, 360.0f))
             {
@@ -107,11 +115,20 @@ void LightingSystem::DrawDebugUI()
             {
                 ambientLightComponent.SetColor(color);
             }
+
+            float intensity = ambientLightComponent.GetIntensity();
+            if (ImGui::DragFloat("AmbientIntensity", &intensity, 0.01f, 0.0f, 1000.0f))
+            {
+                ambientLightComponent.SetIntensity(intensity);
+            }
         }
         else
         {
             ImGui::TextUnformatted("Ambient light not set.");
         }
+
+        ImGui::SeparatorText("Camera");
+        ImGui::SliderFloat("Exposure (EV)", &m_Exposure, -10.0f, 10.0f);
     }
     ImGui::End();
 }
@@ -124,6 +141,11 @@ const AmbientLight& LightingSystem::GetAmbientLight() const
 const DirectionalLight& LightingSystem::GetDirectionalLight() const
 {
     return m_DirectionalLight;
+}
+
+float LightingSystem::GetExposure() const
+{
+    return m_Exposure;
 }
 
 void LightingSystem::DrawDebugGizmo()

@@ -41,7 +41,7 @@ ImGuiSystem::ImGuiSystem()
     ImGui_ImplWGPU_InitInfo init_info;
     init_info.Device = GetRenderSystem()->GetDevice().Get();
     init_info.NumFramesInFlight = 3;
-    init_info.RenderTargetFormat = static_cast<WGPUTextureFormat>(GetWindow()->GetTextureFormat());
+    init_info.RenderTargetFormat = static_cast<WGPUTextureFormat>(GetWindow()->GetSurfaceFormat());
     init_info.DepthStencilFormat = WGPUTextureFormat_Undefined;
     ImGui_ImplWGPU_Init(&init_info);
 

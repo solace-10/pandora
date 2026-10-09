@@ -11,6 +11,7 @@ namespace WingsOfSteel
 struct AmbientLight
 {
     glm::vec3 Color{ 1.0f, 1.0f, 1.0f };
+    float Intensity{ 1.0f };
 };
 
 struct DirectionalLight
@@ -19,6 +20,7 @@ struct DirectionalLight
     float Pitch{ 0.0f };
     glm::vec3 Direction{ 0.0f, 1.0f, 0.0f };
     glm::vec3 Color{ 1.0f, 1.0f, 1.0f };
+    float Intensity{ 1.0f };
 };
 
 class LightingSystem : public IDebugUI
@@ -34,6 +36,9 @@ public:
     const AmbientLight& GetAmbientLight() const;
     const DirectionalLight& GetDirectionalLight() const;
 
+    // In stops: the scene is scaled by 2^exposure before it is tonemapped.
+    float GetExposure() const;
+
 private:
     void DrawDebugGizmo();
 
@@ -42,6 +47,8 @@ private:
 
     DirectionalLight m_DirectionalLight;
     EntityWeakPtr m_pDirectionalLightEntity;
+
+    float m_Exposure{ 0.0f };
 };
 
 } // namespace WingsOfSteel

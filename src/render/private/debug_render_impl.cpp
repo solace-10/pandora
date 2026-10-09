@@ -202,7 +202,7 @@ void DebugRenderImpl::destroyGlyphTexture(dd::GlyphTextureHandle glyphTex)
 void DebugRenderImpl::CreateLineRenderPipeline()
 {
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat()
+        .format = GetWindow()->GetSurfaceFormat()
     };
 
     wgpu::FragmentState fragmentState{
@@ -243,7 +243,7 @@ void DebugRenderImpl::CreateGlyphRenderPipeline()
     };
 
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat(),
+        .format = GetWindow()->GetSurfaceFormat(),
         .blend = &blendState
     };
 

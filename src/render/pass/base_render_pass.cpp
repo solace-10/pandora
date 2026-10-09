@@ -18,12 +18,9 @@ BaseRenderPass::BaseRenderPass()
 
 void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
 {
-    wgpu::SurfaceTexture surfaceTexture;
-    GetWindow()->GetSurface().GetCurrentTexture(&surfaceTexture);
-
     wgpu::RenderPassColorAttachment colorAttachment{
         .view = GetWindow()->GetMsaaColorTexture().GetTextureView(),
-        .resolveTarget = surfaceTexture.texture.CreateView(),
+        .resolveTarget = GetWindow()->GetSceneColorTexture().GetTextureView(),
         .loadOp = wgpu::LoadOp::Clear,
         .storeOp = wgpu::StoreOp::Store,
         .clearValue = wgpu::Color{ 0.0, 0.0, 0.0, 1.0 }

@@ -784,7 +784,7 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
     }
 
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat()
+        .format = GetWindow()->GetSceneFormat()
     };
 
     renderData.materialIndex = static_cast<uint32_t>(pPrimitive->material);

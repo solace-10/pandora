@@ -342,7 +342,7 @@ void LandscapeRenderSystem::CreateRenderPipeline()
     }
 
     wgpu::ColorTargetState colorTargetState{
-        .format = GetWindow()->GetTextureFormat()
+        .format = GetWindow()->GetSceneFormat()
     };
 
     wgpu::FragmentState fragmentState{
