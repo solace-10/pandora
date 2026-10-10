@@ -1,4 +1,6 @@
 
+#include <cstdint>
+
 #include <glm/vec3.hpp>
 
 #include "imgui/idebugui.hpp"
@@ -7,6 +9,13 @@
 
 namespace WingsOfSteel
 {
+
+enum class Tonemapper : uint32_t
+{
+    Neutral,
+    ACES,
+    AgX
+};
 
 struct AmbientLight
 {
@@ -42,6 +51,8 @@ public:
     // How much of the blurred scene is mixed into it; 0 turns bloom off.
     float GetBloomStrength() const;
 
+    Tonemapper GetTonemapper() const;
+
 private:
     void DrawDebugGizmo();
 
@@ -51,8 +62,9 @@ private:
     DirectionalLight m_DirectionalLight;
     EntityWeakPtr m_pDirectionalLightEntity;
 
-    float m_Exposure{ 0.0f };
+    float m_Exposure{ 1.0f };
     float m_BloomStrength{ 0.04f };
+    Tonemapper m_Tonemapper{ Tonemapper::ACES };
 };
 
 } // namespace WingsOfSteel

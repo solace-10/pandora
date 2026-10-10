@@ -10,7 +10,6 @@
 #include "scene/components/directional_light_component.hpp"
 #include "scene/scene.hpp"
 
-
 namespace WingsOfSteel
 {
 
@@ -130,6 +129,12 @@ void LightingSystem::DrawDebugUI()
         ImGui::SeparatorText("Camera");
         ImGui::SliderFloat("Exposure (EV)", &m_Exposure, -10.0f, 10.0f);
         ImGui::SliderFloat("Bloom strength", &m_BloomStrength, 0.0f, 1.0f);
+
+        int tonemapper = static_cast<int>(m_Tonemapper);
+        if (ImGui::Combo("Tonemapper", &tonemapper, "PBR Neutral\0ACES\0AgX\0"))
+        {
+            m_Tonemapper = static_cast<Tonemapper>(tonemapper);
+        }
     }
     ImGui::End();
 }
@@ -152,6 +157,11 @@ float LightingSystem::GetExposure() const
 float LightingSystem::GetBloomStrength() const
 {
     return m_BloomStrength;
+}
+
+Tonemapper LightingSystem::GetTonemapper() const
+{
+    return m_Tonemapper;
 }
 
 void LightingSystem::DrawDebugGizmo()
