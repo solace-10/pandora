@@ -11,6 +11,7 @@ to install anything first.
 |---|---|---|
 | `linux-amd64/` | `ktx`, `libktx.so.4` | `KTX-Software-4.4.2-Linux-x86_64.tar.bz2` |
 | `windows-amd64/` | `ktx.exe`, `ktx.dll` | `KTX-Software-4.4.2-Windows-x64.exe` |
+| `darwin-arm64/` | `ktx`, `libktx.4.dylib` | `KTX-Software-4.4.2-Darwin-arm64.pkg` |
 
 These are the only encoders Forge will use. It does not fall back to a `ktx`
 on `PATH`, so that a texture compiled on one machine is identical to the same
@@ -23,6 +24,9 @@ therefore means vendoring its binaries here first.
   `libktx.so.4` is found beside it with no environment setup.
 - **Windows:** the Visual C++ runtime (`MSVCP140.dll`, `VCRUNTIME140.dll`),
   which is present on any machine with Visual Studio installed.
+- **macOS:** 11 or newer, Apple Silicon. The binary's `LC_RPATH` includes
+  `@executable_path`, so `libktx.4.dylib` is found beside it with no
+  environment setup. Both files keep Khronos's Developer ID signature.
 
 ## Adding a platform or updating the version
 
@@ -32,6 +36,11 @@ On Linux the library is published as `libktx.so.4.4.2`; rename it to
 `libktx.so.4`, which is the SONAME the executable looks for. The Windows
 release is an NSIS installer rather than an archive, so extract it with
 `7z x KTX-Software-<version>-Windows-x64.exe` and take the files from `bin/`.
+The macOS release is a signed installer package; unpack it without installing
+via `pkgutil --expand-full KTX-Software-<version>-Darwin-arm64.pkg <dir>`, then
+take `ktx` from `*-tools.pkg/Payload/usr/local/bin/` and `libktx.<version>.dylib`
+from `*-library.pkg/Payload/usr/local/lib/`, renaming the latter to
+`libktx.4.dylib`, which is the install name the executable looks for.
 
 Refresh `licenses/` from the matching tag, and update the version above.
 
