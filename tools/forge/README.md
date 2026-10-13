@@ -171,3 +171,20 @@ change.
 `Fingerprint` must capture everything that affects the output, including the
 version of any external encoder invoked, otherwise upgrading that encoder will
 leave stale artifacts in the cache.
+
+## Building
+
+Forge is committed prebuilt in `bin/`, one binary per host platform, named
+`forge-<GOOS>-<GOARCH>` to match the `ktx` directories beside it:
+
+| Binary | Platform | Built with |
+|---|---|---|
+| `forge-linux-amd64` | Linux x86-64 | `GOOS=linux GOARCH=amd64 go build -o ../bin/forge-linux-amd64 .` |
+| `forge-windows-amd64.exe` | Windows x86-64 | `GOOS=windows GOARCH=amd64 go build -o ../bin/forge-windows-amd64.exe .` |
+| `forge-darwin-arm64` | macOS Apple Silicon | `GOOS=darwin GOARCH=arm64 go build -o ../bin/forge-darwin-arm64 .` |
+
+Run the commands from `src/`. Go cross-compiles, so all three can be built on
+any one machine. Rebuild every binary when the source changes, or the
+platforms will drift apart. CMake picks the binary in `pandora/CMakeLists.txt`
+and `game/CMakeLists.txt`, keyed on the host rather than the target, since
+Forge runs on the host even for web builds.

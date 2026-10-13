@@ -84,10 +84,12 @@ endif()
 # Compile the assets described in game/assets into game/bin/data/core.
 # Every platform needs this, as the compiled assets are what the game loads.
 # Forge caches its output, so this is cheap when nothing has changed.
-if(WIN32)
-    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge.exe")
+if(CMAKE_HOST_WIN32)
+    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge-windows-amd64.exe")
+elseif(CMAKE_HOST_APPLE)
+    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge-darwin-arm64")
 else()
-    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge")
+    set(FORGE_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/tools/forge/bin/forge-linux-amd64")
 endif()
 
 add_custom_target(forge_compile_assets
