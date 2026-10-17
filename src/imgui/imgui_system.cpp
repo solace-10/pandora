@@ -135,7 +135,33 @@ void ImGuiSystem::Update()
 void ImGuiSystem::Render(wgpu::RenderPassEncoder& pass)
 {
     ImGui::Render();
-    ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), pass.Get());
+
+    ImDrawData* pDrawData = ImGui::GetDrawData();
+    if (!m_Visible)
+    {
+        pDrawData->CmdLists.clear();
+        pDrawData->CmdListsCount = 0;
+        pDrawData->TotalVtxCount = 0;
+        pDrawData->TotalIdxCount = 0;
+        pDrawData->AddDrawList(ImGui::GetForegroundDrawList());
+    }
+
+    ImGui_ImplWGPU_RenderDrawData(pDrawData, pass.Get());
+}
+
+void ImGuiSystem::Show(bool state)
+{
+    m_Visible = state;
+
+    const ImGuiConfigFlags inputFlags = ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoKeyboard;
+    if (state)
+    {
+        ImGui::GetIO().ConfigFlags &= ~inputFlags;
+    }
+    else
+    {
+        ImGui::GetIO().ConfigFlags |= inputFlags;
+    }
 }
 
 void ImGuiSystem::SetGameMenuBarCallback(ImGuiGameMenuBarCallback callback)
