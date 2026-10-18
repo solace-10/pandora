@@ -110,9 +110,16 @@ void LightingSystem::DrawDebugUI()
         {
             AmbientLightComponent& ambientLightComponent = pAmbientLightEntity->GetComponent<AmbientLightComponent>();
             glm::vec3 color = ambientLightComponent.GetColor();
+            ImGui::BeginDisabled(m_AmbientSH.has_value());
             if (ImGui::ColorEdit3("AmbientColor", (float*)&color, ImGuiColorEditFlags_Float))
             {
                 ambientLightComponent.SetColor(color);
+            }
+            ImGui::EndDisabled();
+
+            if (m_AmbientSH.has_value())
+            {
+                ImGui::TextDisabled("Color overriden by the skybox.");
             }
 
             float intensity = ambientLightComponent.GetIntensity();
@@ -147,6 +154,36 @@ const AmbientLight& LightingSystem::GetAmbientLight() const
 const DirectionalLight& LightingSystem::GetDirectionalLight() const
 {
     return m_DirectionalLight;
+}
+
+void LightingSystem::SetAmbientSH(const AmbientSH& ambientSH)
+{
+    m_AmbientSH = ambientSH;
+}
+
+void LightingSystem::ClearAmbientSH()
+{
+    m_AmbientSH.reset();
+}
+
+AmbientSH LightingSystem::GetAmbientSH() const
+{
+    AmbientSH ambientSH{};
+    if (m_AmbientSH.has_value())
+    {
+        ambientSH = m_AmbientSH.value();
+    }
+    else
+    {
+        // Only the constant band, scaled so that it evaluates to the ambient colour everywhere.
+        ambientSH[0] = m_AmbientLight.Color / 0.282095f;
+    }
+
+    for (glm::vec3& coefficient : ambientSH)
+    {
+        coefficient *= m_AmbientLight.Intensity;
+    }
+    return ambientSH;
 }
 
 float LightingSystem::GetExposure() const

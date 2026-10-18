@@ -75,6 +75,7 @@ private:
         glm::vec4 directionalLightColor;
         glm::vec4 directionalLightDirection;
         glm::vec4 ambientLightColor;
+        glm::vec4 ambientSH[9]; // See AmbientSH; vec4s for alignment.
     };
     GlobalUniforms m_GlobalUniforms;
 

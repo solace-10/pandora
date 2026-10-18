@@ -352,6 +352,12 @@ void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
     const AmbientLight& ambientLight = GetLightingSystem()->GetAmbientLight();
     m_GlobalUniforms.ambientLightColor = glm::vec4(ambientLight.Color * ambientLight.Intensity, 1.0f);
 
+    const AmbientSH ambientSH = GetLightingSystem()->GetAmbientSH();
+    for (size_t i = 0; i < ambientSH.size(); ++i)
+    {
+        m_GlobalUniforms.ambientSH[i] = glm::vec4(ambientSH[i], 0.0f);
+    }
+
     GetDevice().GetQueue().WriteBuffer(m_GlobalUniformsBuffer, 0, &m_GlobalUniforms, sizeof(GlobalUniforms));
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);
 }

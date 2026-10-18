@@ -14,7 +14,8 @@ struct GlobalUniforms
     windowHeight: f32,
     directionalLightColor: vec4f,
     directionalLightDirection: vec4f,
-    ambientLightColor: vec4f
+    ambientLightColor: vec4f,
+    ambientSH: array<vec4f, 9> // See AmbientSH in lighting_system.hpp.
 };
 )";
 

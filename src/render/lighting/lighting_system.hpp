@@ -1,5 +1,8 @@
+#pragma once
 
+#include <array>
 #include <cstdint>
+#include <optional>
 
 #include <glm/vec3.hpp>
 
@@ -23,6 +26,12 @@ struct AmbientLight
     float Intensity{ 1.0f };
 };
 
+// Ambient light as order 2 spherical harmonics: the 9 coefficients of the real SH basis, in the order
+// l = 0, then l = 1 (y, z, x), then l = 2 (xy, yz, 3z^2 - 1, xz, x^2 - y^2). They are already convolved
+// with the cosine lobe and divided by pi, so evaluated in a direction they give the light that a white
+// Lambertian surface facing that way reflects.
+using AmbientSH = std::array<glm::vec3, 9>;
+
 struct DirectionalLight
 {
     float Angle{ 0.0f };
@@ -45,6 +54,14 @@ public:
     const AmbientLight& GetAmbientLight() const;
     const DirectionalLight& GetDirectionalLight() const;
 
+    // Replaces the ambient colour with light that varies with direction, such as a sky's. The
+    // ambient intensity still scales it.
+    void SetAmbientSH(const AmbientSH& ambientSH);
+    void ClearAmbientSH();
+
+    // What shaders receive: the SH set above, or the ambient colour as a constant if there is none.
+    AmbientSH GetAmbientSH() const;
+
     // In stops: the scene is scaled by 2^exposure before it is tonemapped.
     float GetExposure() const;
 
@@ -58,6 +75,7 @@ private:
 
     AmbientLight m_AmbientLight;
     EntityWeakPtr m_pAmbientLightEntity;
+    std::optional<AmbientSH> m_AmbientSH;
 
     DirectionalLight m_DirectionalLight;
     EntityWeakPtr m_pDirectionalLightEntity;
