@@ -70,12 +70,22 @@ void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
         }
     }
 
+    if (m_PostSceneCallback)
+    {
+        m_PostSceneCallback(renderPass);
+    }
+
     renderPass.End();
 }
 
 void BaseRenderPass::SetPreSceneCallback(PreSceneCallback callback)
 {
     m_PreSceneCallback = std::move(callback);
+}
+
+void BaseRenderPass::SetPostSceneCallback(PostSceneCallback callback)
+{
+    m_PostSceneCallback = std::move(callback);
 }
 
 } // namespace WingsOfSteel
