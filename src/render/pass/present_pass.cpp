@@ -173,6 +173,24 @@ fn linearToSrgb(linear: vec3f) -> vec3f
     return select(higher, lower, cutoff);
 }
 
+// PCG, from Jarzynski and Olano, "Hash Functions for GPU Rendering" (JCGT 2020).
+fn pcg(v: u32) -> u32
+{
+    let state = v * 747796405u + 2891336453u;
+    let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+// Triangular noise in (-1, 1), in units of one 8-bit step. Smooth gradients such as a skybox band
+// once quantized to the surface's 8 bits per channel, and this breaks the bands up.
+fn dither(texel: vec2u) -> f32
+{
+    let h = pcg(texel.x + pcg(texel.y));
+    let a = f32(h & 0xffffu) / 65535.0;
+    let b = f32(h >> 16u) / 65535.0;
+    return (a + b - 1.0) / 255.0;
+}
+
 @fragment fn presentMain(in: VertexOutput) -> @location(0) vec4f
 {
     // The scene and the overlay are the surface's size, so they are read texel for texel.
@@ -181,7 +199,7 @@ fn linearToSrgb(linear: vec3f) -> vec3f
     let bloom = textureSampleLevel(bloomTexture, bloomSampler, in.uv, 0.0).rgb * settings.bloomScale;
     let color = linearToSrgb(tonemap(mix(scene, bloom, settings.bloomStrength) * settings.exposure));
     let overlay = textureLoad(overlayTexture, texel, 0);
-    return vec4f(color * (1.0 - overlay.a) + overlay.rgb, 1.0);
+    return vec4f(color * (1.0 - overlay.a) + overlay.rgb + dither(texel), 1.0);
 }
 )";
 

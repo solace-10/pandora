@@ -42,6 +42,11 @@ void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
     wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderpass);
     GetRenderSystem()->UpdateGlobalUniforms(renderPass);
 
+    if (m_PreSceneCallback)
+    {
+        m_PreSceneCallback(renderPass);
+    }
+
     Scene* pScene = GetActiveScene();
     if (pScene)
     {
@@ -66,6 +71,11 @@ void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
     }
 
     renderPass.End();
+}
+
+void BaseRenderPass::SetPreSceneCallback(PreSceneCallback callback)
+{
+    m_PreSceneCallback = std::move(callback);
 }
 
 } // namespace WingsOfSteel
