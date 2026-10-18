@@ -42,6 +42,11 @@ public:
 
     void SetGameMenuBarCallback(ImGuiGameMenuBarCallback callback);
 
+    // While hidden, only the foreground draw list is rendered (e.g. the locked cursor) and ImGui
+    // ignores mouse and keyboard input.
+    void Show(bool state);
+    bool IsVisible() const;
+
     ImFont* GetFont(Font font) const;
 
 private:
@@ -49,6 +54,7 @@ private:
     void RegisterFont(Font font, ImFont* pImFont);
     void ApplyStyle();
 
+    bool m_Visible{ true };
     bool m_ShowDemoWindow{ false };
     bool m_DebugDrawDemo{ false };
     bool m_ShowShaderEditor{ false };
@@ -56,6 +62,11 @@ private:
     std::array<ImFont*, magic_enum::enum_count<Font>()> m_Fonts;
     ProfilingOverlayUniquePtr m_pProfilingOverlay;
 };
+
+inline bool ImGuiSystem::IsVisible() const
+{
+    return m_Visible;
+}
 
 inline ImFont* ImGuiSystem::GetFont(Font font) const
 {
