@@ -81,7 +81,7 @@ private:
     EntityWeakPtr m_pDirectionalLightEntity;
 
     float m_Exposure{ 1.0f };
-    float m_BloomStrength{ 0.04f };
+    float m_BloomStrength{ 0.2f };
     Tonemapper m_Tonemapper{ Tonemapper::ACES };
 };
 
