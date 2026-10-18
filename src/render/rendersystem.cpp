@@ -253,6 +253,20 @@ void RenderSystem::AcquireDevice(void (*callback)())
                                  << " - message: " << std::string_view(message.data, message.length);
                     exit(-1);
                 });
+            // Can fire from inside ~RenderSystem, so it mustn't touch engine state.
+            deviceDescriptor.SetDeviceLostCallback(
+                wgpu::CallbackMode::AllowSpontaneous,
+                [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+                    // Destroyed and CallbackCancelled are the normal shutdown path.
+                    if (reason == wgpu::DeviceLostReason::Destroyed || reason == wgpu::DeviceLostReason::CallbackCancelled)
+                    {
+                        return;
+                    }
+
+                    // Recovering would mean recreating every GPU resource, so treat a real loss as fatal (Log::Error aborts).
+                    Log::Error() << "Device lost: " << magic_enum::enum_name(reason)
+                                 << " - message: " << std::string_view(message.data, message.length);
+                });
 
             g_Adapter.RequestDevice(
                 &deviceDescriptor,
