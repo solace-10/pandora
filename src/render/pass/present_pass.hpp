@@ -10,6 +10,8 @@ namespace WingsOfSteel
 // Blooms, exposes and tonemaps the scene, which is rendered in linear space, encodes it into the
 // surface for display and composites the window's overlay on top. Passes after this one draw
 // straight onto the surface.
+DECLARE_SMART_PTR(ResourceShader);
+
 DECLARE_SMART_PTR(PresentPass);
 class PresentPass : public Pass
 {
@@ -19,10 +21,16 @@ public:
     void Execute(wgpu::CommandEncoder& encoder) override;
 
 private:
+    void RequestShaders();
+    void ClearSurface(wgpu::CommandEncoder& encoder);
     void CreateRenderPipelines();
     void UpdateBloomTexture();
     void RenderBloom(wgpu::CommandEncoder& encoder);
     void DrawFullscreen(wgpu::CommandEncoder& encoder, const wgpu::RenderPipeline& pipeline, const wgpu::TextureView& target, wgpu::LoadOp loadOp, const wgpu::TextureView& source);
+
+    bool m_ShadersRequested{ false };
+    ResourceShaderSharedPtr m_pPresentShader;
+    ResourceShaderSharedPtr m_pBloomShader;
 
     wgpu::RenderPipeline m_Pipeline;
     wgpu::RenderPipeline m_DownsamplePipeline;

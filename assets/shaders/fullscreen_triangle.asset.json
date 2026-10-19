@@ -1,0 +1,4 @@
+{
+    "source": "shaders/fullscreen_triangle.wgsl",
+    "destination": "shaders/pandora/fullscreen_triangle.wgsl"
+}

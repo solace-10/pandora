@@ -1,0 +1,4 @@
+{
+    "source": "shaders/bloom.wgsl",
+    "destination": "shaders/pandora/bloom.wgsl"
+}
