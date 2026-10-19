@@ -10,6 +10,12 @@
 namespace WingsOfSteel
 {
 
+static const std::string sShadersDir("/shaders/");
+
+// Pandora's own shaders are compiled into this directory by Forge, which would overwrite any change
+// saved over them, so they are shown read-only.
+static const std::string sEngineShadersDir("/shaders/pandora/");
+
 ShaderEditor::ShaderEditor()
 {
 }
@@ -83,7 +89,7 @@ void ShaderEditor::Initialize()
         IM_COL32(0, 0, 0, 0), // Current line edge
     } };
 
-    auto shadersList = GetVFS()->List("/shaders");
+    auto shadersList = GetVFS()->List(sShadersDir);
     m_ShadersToLoad = shadersList.size();
     for (auto& shaderFile : shadersList)
     {
@@ -98,9 +104,11 @@ void ShaderEditor::Initialize()
             data.editor.SetLanguageDefinition(TextEditor::LanguageDefinition::WGSL());
             data.editor.SetPalette(palette);
             data.editor.SetText(pResourceShader->GetShaderCode());
+            data.editor.SetReadOnly(pResourceShader->GetPath().starts_with(sEngineShadersDir));
             data.code = data.editor.GetText();
 
-            m_Shaders[pResourceShader->GetName()] = std::move(data);
+            // Keyed by path, as shaders in different directories can share a name.
+            m_Shaders[pResourceShader->GetPath()] = std::move(data);
             m_ShadersToLoad--;
         });
     }
@@ -125,21 +133,26 @@ void ShaderEditor::DrawShaderList()
         const std::string& lastSavedText = entry.second.code;
         const bool modified = (editorText != lastSavedText);
         const bool error = (entry.second.state == ShaderEditor::ShaderState::Error);
+        const std::string name = entry.first.substr(sShadersDir.size());
 
         std::string label;
         if (error)
         {
-            label = ICON_FA_TRIANGLE_EXCLAMATION " " + entry.first;
+            label = ICON_FA_TRIANGLE_EXCLAMATION " " + name;
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 0.0, 0.0f, 1.0f));
         }
         else if (modified)
         {
-            label = ICON_FA_FLOPPY_DISK " " + entry.first;
+            label = ICON_FA_FLOPPY_DISK " " + name;
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 0.5, 0.0f, 1.0f));
+        }
+        else if (entry.second.editor.IsReadOnly())
+        {
+            label = ICON_FA_LOCK " " + name;
         }
         else
         {
-            label = ICON_FA_FILE_CODE " " + entry.first;
+            label = ICON_FA_FILE_CODE " " + name;
         }
 
         bool selected = (entry.first == m_Selected);
@@ -187,6 +200,10 @@ void ShaderEditor::CompileSelectedShader()
     }
 
     ShaderEditorData& data = m_Shaders[m_Selected];
+    if (data.editor.IsReadOnly())
+    {
+        return;
+    }
 
     const std::string& codeToCompile = data.editor.GetText();
     data.pResource->Inject(codeToCompile, [this, &data, codeToCompile](ShaderCompilationResult* pResult) {

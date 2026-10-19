@@ -15,6 +15,20 @@ import (
 // distinguishable.
 const DescriptorSuffix = ".asset.json"
 
+// EngineDir is the directory Pandora's own assets are written to, inside the
+// top level directory of data/core they belong in: an engine shader is loaded
+// as /shaders/pandora/x.wgsl. Those paths are reserved for the engine, so a
+// project can neither override an engine asset nor add its own beside them.
+const EngineDir = "pandora"
+
+// Root is a directory of descriptors and the sources they name.
+type Root struct {
+	Dir string
+	// Engine marks Pandora's own assets, the only ones which may be written to
+	// the engine's reserved paths.
+	Engine bool
+}
+
 // commonFields are the descriptor keys handled by the compiler itself. Every
 // other key is passed through to the tool as its options.
 var commonFields = map[string]bool{
@@ -27,11 +41,13 @@ var commonFields = map[string]bool{
 type Descriptor struct {
 	// DescriptorPath is the absolute path of the descriptor file.
 	DescriptorPath string
-	// RelPath is the descriptor's path relative to the assets directory, used
-	// in messages and stored in the cache index.
+	// RelPath is the descriptor's path relative to the project root, used in
+	// messages and stored in the cache index.
 	RelPath string
+	// Engine is set for descriptors from Pandora's own assets directory.
+	Engine bool
 
-	// Source is the input file, relative to the assets directory.
+	// Source is the input file, relative to its assets directory.
 	Source string
 	// Destination is the output file, relative to the data/core directory.
 	Destination string
@@ -69,31 +85,38 @@ func (d *Descriptor) DecodeOptions(out any) error {
 	return nil
 }
 
-// Discover walks assetsDir and parses every descriptor it finds. Results are
-// sorted by descriptor path so that runs are reproducible.
-func Discover(assetsDir, dataCoreDir string) ([]*Descriptor, error) {
+// Discover walks every root and parses the descriptors it finds, skipping roots
+// that do not exist. Results are sorted by descriptor path so that runs are
+// reproducible.
+func Discover(projectRoot string, roots []Root, dataCoreDir string) ([]*Descriptor, error) {
 	var descriptors []*Descriptor
 
-	err := filepath.Walk(assetsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	for _, root := range roots {
+		if _, err := os.Stat(root.Dir); os.IsNotExist(err) {
+			continue
 		}
 
-		if info.IsDir() || !strings.HasSuffix(info.Name(), DescriptorSuffix) {
+		err := filepath.Walk(root.Dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() || !strings.HasSuffix(info.Name(), DescriptorSuffix) {
+				return nil
+			}
+
+			descriptor, err := parseDescriptor(path, projectRoot, root, dataCoreDir)
+			if err != nil {
+				return err
+			}
+
+			descriptors = append(descriptors, descriptor)
 			return nil
-		}
+		})
 
-		descriptor, err := parseDescriptor(path, assetsDir, dataCoreDir)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		descriptors = append(descriptors, descriptor)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
 	sort.Slice(descriptors, func(i, j int) bool {
@@ -107,8 +130,8 @@ func Discover(assetsDir, dataCoreDir string) ([]*Descriptor, error) {
 	return descriptors, nil
 }
 
-func parseDescriptor(path, assetsDir, dataCoreDir string) (*Descriptor, error) {
-	relPath, err := filepath.Rel(assetsDir, path)
+func parseDescriptor(path, projectRoot string, root Root, dataCoreDir string) (*Descriptor, error) {
+	relPath, err := filepath.Rel(projectRoot, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get relative path for %s: %w", path, err)
 	}
@@ -129,6 +152,7 @@ func parseDescriptor(path, assetsDir, dataCoreDir string) (*Descriptor, error) {
 	descriptor := &Descriptor{
 		DescriptorPath: path,
 		RelPath:        relPath,
+		Engine:         root.Engine,
 	}
 
 	var common struct {
@@ -157,7 +181,7 @@ func parseDescriptor(path, assetsDir, dataCoreDir string) (*Descriptor, error) {
 		return nil, fmt.Errorf("failed to encode options of %s: %w", relPath, err)
 	}
 
-	if err := resolve(descriptor, assetsDir, dataCoreDir); err != nil {
+	if err := resolve(descriptor, root.Dir, dataCoreDir); err != nil {
 		return nil, err
 	}
 
@@ -198,9 +222,23 @@ func resolve(d *Descriptor, assetsDir, dataCoreDir string) error {
 	}
 
 	d.Destination = filepath.ToSlash(filepath.Clean(d.Destination))
+
+	if d.Engine && !IsEnginePath(d.Destination) {
+		return fmt.Errorf("%s: engine assets must be written to '<directory>/%s/', got '%s'", d.RelPath, EngineDir, d.Destination)
+	}
+	if !d.Engine && IsEnginePath(d.Destination) {
+		return fmt.Errorf("%s: '%s' is reserved for Pandora's own assets", d.RelPath, d.Destination)
+	}
 	d.OutputPath = filepath.Join(dataCoreDir, filepath.FromSlash(d.Destination))
 
 	return nil
+}
+
+// IsEnginePath reports whether a destination, relative to data/core, is one of
+// the paths reserved for Pandora's own assets.
+func IsEnginePath(destination string) bool {
+	parts := strings.SplitN(filepath.ToSlash(destination), "/", 3)
+	return len(parts) == 3 && parts[1] == EngineDir
 }
 
 // validateRelative rejects paths that would let a descriptor read or write

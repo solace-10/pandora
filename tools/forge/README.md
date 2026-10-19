@@ -8,7 +8,7 @@ Cloudflare R2 for web builds.
 
 | Command | Purpose |
 |---|---|
-| `forge assets` | Compile `game/assets` into `game/bin/data/core` |
+| `forge assets` | Compile `game/assets` and `pandora/assets` into `game/bin/data/core` |
 | `forge manifest` | Hash `game/bin/data/core` into `game/bin/manifest.json` |
 | `forge upload` | Upload the manifest's files to Cloudflare R2 |
 | `forge serve` | Serve `game/bin` over HTTP for local development |
@@ -19,8 +19,9 @@ close to nothing.
 
 ## Asset descriptors
 
-Every `*.asset.json` file under `game/assets` describes one asset. `source` is
-relative to `game/assets`, and `destination` is relative to
+Every `*.asset.json` file under `game/assets` or `pandora/assets` describes one
+asset. `source` is relative to the assets directory the descriptor is in, and
+`destination` is relative to
 `game/bin/data/core` — which is what the game sees through the VFS, so a
 destination of `fonts/UbuntuMono-R.ttf` is loaded as `/fonts/UbuntuMono-R.ttf`.
 
@@ -33,12 +34,31 @@ destination of `fonts/UbuntuMono-R.ttf` is loaded as `/fonts/UbuntuMono-R.ttf`.
 
 | Field | Required | Meaning |
 |---|---|---|
-| `source` | yes | Input file, relative to `game/assets` |
+| `source` | yes | Input file, relative to the descriptor's assets directory |
 | `destination` | no | Output file, relative to `game/bin/data/core`. Defaults to the source path with the tool's output extension |
 | `tool` | no | Overrides the tool chosen from the source's extension |
 
 Unrecognised fields are an error rather than being ignored, so a typo fails the
 build instead of silently shipping a wrongly compiled asset.
+
+### Engine assets
+
+`pandora/assets` holds Pandora's own assets, such as the shaders the engine
+loads itself, so that every project using the engine gets them from the one
+copy. They are written to a `pandora` directory inside the top level directory
+of `data/core` they belong in: `shaders/pandora/globals.wgsl` is loaded as
+`/shaders/pandora/globals.wgsl`.
+
+Those `<directory>/pandora/` paths are reserved for the engine, so a project
+cannot override an engine asset or add its own beside them:
+
+- An engine descriptor must give a `destination` under `<directory>/pandora/`.
+- A game descriptor may not.
+- Any file in a reserved path that no engine descriptor produces fails the run,
+  which catches files put there by hand.
+
+The compiled engine assets are not meant to be committed, so a project should
+gitignore `game/bin/data/core/*/pandora/`.
 
 ### Tools
 

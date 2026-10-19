@@ -1,0 +1,4 @@
+{
+    "source": "shaders/globals.wgsl",
+    "destination": "shaders/pandora/globals.wgsl"
+}

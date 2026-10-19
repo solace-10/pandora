@@ -1,0 +1,4 @@
+{
+    "source": "shaders/debug_render_glyph.wgsl",
+    "destination": "shaders/pandora/debug_render_glyph.wgsl"
+}

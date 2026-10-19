@@ -1,0 +1,4 @@
+{
+    "source": "shaders/mip_level.wgsl",
+    "destination": "shaders/pandora/mip_level.wgsl"
+}

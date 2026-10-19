@@ -21,22 +21,37 @@ var (
 var AssetsCmd = &cobra.Command{
 	Use:   "assets",
 	Short: "Compile assets into the game's data directory",
-	Long: `Compile game assets described by descriptors into their shipping form.
+	Long: `Compile game and engine assets described by descriptors into their shipping form.
 
-Every '*.asset.json' file under game/assets is read as a descriptor naming a
-source file, an optional destination, and any format-specific options. The
-tool used is chosen from the source's extension: images are encoded to KTX2,
-and anything without a dedicated tool is copied verbatim.
+Every '*.asset.json' file under game/assets and pandora/assets is read as a
+descriptor naming a source file, an optional destination, and any
+format-specific options. The tool used is chosen from the source's extension:
+images are encoded to KTX2, and anything without a dedicated tool is copied
+verbatim.
+
+Pandora's assets are written to a 'pandora' directory inside the top level
+directory they belong in, e.g. shaders/pandora/, and those paths are reserved
+for them.
 
 Compiled artifacts are cached by content hash in .forge-cache, so unchanged
 assets are not compiled twice.
 
-Source: game/assets/
+Source: game/assets/, pandora/assets/
 Output: game/bin/data/core/
 
 Run this before 'forge manifest' so the manifest describes compiled output.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		projectRoot, err := paths.ProjectRoot()
+		if err != nil {
+			fail(err)
+		}
+
 		assetsDir, err := paths.AssetsDir()
+		if err != nil {
+			fail(err)
+		}
+
+		engineAssetsDir, err := paths.EngineAssetsDir()
 		if err != nil {
 			fail(err)
 		}
@@ -52,7 +67,11 @@ Run this before 'forge manifest' so the manifest describes compiled output.`,
 		}
 
 		options := assets.Options{
-			AssetsDir:   assetsDir,
+			ProjectRoot: projectRoot,
+			Roots: []assets.Root{
+				{Dir: assetsDir},
+				{Dir: engineAssetsDir, Engine: true},
+			},
 			DataCoreDir: dataCoreDir,
 			CacheDir:    cacheDir,
 			Force:       assetsForce,
@@ -70,13 +89,8 @@ Run this before 'forge manifest' so the manifest describes compiled output.`,
 			return
 		}
 
-		if _, err := os.Stat(assetsDir); os.IsNotExist(err) {
-			fmt.Printf("No assets directory at %s, nothing to compile.\n", assetsDir)
-			return
-		}
-
 		fmt.Printf("Compiling assets...\n")
-		fmt.Printf("Source: %s\n", assetsDir)
+		fmt.Printf("Source: %s, %s\n", assetsDir, engineAssetsDir)
 		fmt.Printf("Output: %s\n\n", dataCoreDir)
 
 		result, err := assets.Compile(options)

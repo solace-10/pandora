@@ -21,7 +21,7 @@ void MipLevelGenerator::GenerateMips(wgpu::Texture texture)
     }
     else
     {
-        GetResourceSystem()->RequestResource("/shaders/mip_level.wgsl", [this, texture](ResourceSharedPtr pResource) {
+        GetResourceSystem()->RequestResource("/shaders/pandora/mip_level.wgsl", [this, texture](ResourceSharedPtr pResource) {
             m_pMipLevelShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
             GenerateMipsInternal(texture);
         });

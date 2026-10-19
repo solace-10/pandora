@@ -39,7 +39,7 @@ void DebugRenderImpl::Initialize()
 {
     dd::initialize(this);
 
-    GetResourceSystem()->RequestResource("/shaders/debug_render_untextured.wgsl", [this](ResourceSharedPtr pResource) {
+    GetResourceSystem()->RequestResource("/shaders/pandora/debug_render_untextured.wgsl", [this](ResourceSharedPtr pResource) {
         m_pUntexturedShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
         CreateLineRenderPipeline();
     });
@@ -54,7 +54,7 @@ void DebugRenderImpl::Initialize()
     m_LineVertexBufferSize = DEBUG_DRAW_VERTEX_BUFFER_SIZE * sizeof(LineData);
     m_LineData.reserve(DEBUG_DRAW_VERTEX_BUFFER_SIZE);
 
-    GetResourceSystem()->RequestResource("/shaders/debug_render_glyph.wgsl", [this](ResourceSharedPtr pResource) {
+    GetResourceSystem()->RequestResource("/shaders/pandora/debug_render_glyph.wgsl", [this](ResourceSharedPtr pResource) {
         m_pGlyphShader = std::dynamic_pointer_cast<ResourceShader>(pResource);
         CreateGlyphRenderPipeline();
     });

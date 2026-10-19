@@ -45,6 +45,12 @@ func AssetsDir() (string, error) {
 	return subdir("game", "assets")
 }
 
+// EngineAssetsDir returns the directory holding Pandora's own asset descriptors
+// and their sources, which every project using the engine compiles.
+func EngineAssetsDir() (string, error) {
+	return subdir("pandora", "assets")
+}
+
 // DataCoreDir returns the directory the game loads its data from, and which
 // the asset compiler writes into.
 func DataCoreDir() (string, error) {

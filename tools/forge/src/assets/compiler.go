@@ -13,7 +13,8 @@ import (
 
 // Options configures a compilation run.
 type Options struct {
-	AssetsDir   string
+	ProjectRoot string
+	Roots       []Root
 	DataCoreDir string
 	CacheDir    string
 
@@ -62,7 +63,7 @@ type plan struct {
 func Compile(options Options) (Result, error) {
 	var result Result
 
-	descriptors, err := Discover(options.AssetsDir, options.DataCoreDir)
+	descriptors, err := Discover(options.ProjectRoot, options.Roots, options.DataCoreDir)
 	if err != nil {
 		return result, err
 	}
@@ -81,6 +82,10 @@ func Compile(options Options) (Result, error) {
 		return result, err
 	}
 	result.Removed = removed
+
+	if err := checkEnginePaths(descriptors, options.DataCoreDir); err != nil {
+		return result, err
+	}
 
 	failures := run(plans, cache, options, &result)
 
@@ -320,6 +325,53 @@ func removeOrphans(descriptors []*Descriptor, cache *Cache, options Options) (in
 	}
 
 	return removed, nil
+}
+
+// checkEnginePaths rejects files in the engine's reserved paths which no engine
+// descriptor produces. Descriptors are already kept out of them, so this catches
+// files put there by hand, which would otherwise ship alongside the engine's.
+func checkEnginePaths(descriptors []*Descriptor, dataCoreDir string) error {
+	produced := make(map[string]bool)
+	for _, descriptor := range descriptors {
+		if descriptor.Engine {
+			produced[descriptor.VFSPath()] = true
+		}
+	}
+
+	dirs, err := filepath.Glob(filepath.Join(dataCoreDir, "*", EngineDir))
+	if err != nil {
+		return err
+	}
+
+	var strays []string
+	for _, dir := range dirs {
+		err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || entry.IsDir() {
+				return err
+			}
+
+			relPath, err := filepath.Rel(dataCoreDir, path)
+			if err != nil {
+				return err
+			}
+
+			if vfsPath := "/" + filepath.ToSlash(relPath); !produced[vfsPath] {
+				strays = append(strays, vfsPath)
+			}
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(strays) > 0 {
+		sort.Strings(strays)
+		return fmt.Errorf("these files are in paths reserved for Pandora's own assets, which only pandora/assets may write to:\n  %s", strings.Join(strays, "\n  "))
+	}
+
+	return nil
 }
 
 // pruneEmptyDirs removes directories left empty by a deletion, stopping at the
