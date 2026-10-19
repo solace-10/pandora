@@ -8,6 +8,7 @@
 
 #include "core/smart_ptr.hpp"
 #include "render/shader_compilation_error.hpp"
+#include "render/shader_preprocessor.hpp"
 
 namespace WingsOfSteel
 {
@@ -43,6 +44,7 @@ private:
     State m_State{ State::Compiling };
     OnShaderCompiledCallback m_Callback;
     std::vector<ShaderCompilationError> m_Errors;
+    ShaderSourceMap m_SourceMap;
 };
 
 } // namespace WingsOfSteel

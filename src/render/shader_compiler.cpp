@@ -13,23 +13,40 @@ namespace WingsOfSteel
 
 ShaderCompiler::ShaderCompiler()
 {
-    ShaderPreprocessor::Initialize();
 }
 
 ShaderCompiler::~ShaderCompiler()
 {
 }
 
-void ShaderCompiler::Compile(const std::string& label, const std::string& code, OnShaderCompiledCallback callback)
+void ShaderCompiler::Compile(const std::string& path, const std::string& label, const std::string& code, OnShaderCompiledCallback callback)
 {
     const uint32_t id = static_cast<uint32_t>(m_Results.size());
     m_Results.push_back(std::move(std::make_unique<ShaderCompilationResult>(id)));
+    GetShaderCompilationResult(id)->m_Callback = callback;
+
+    ShaderPreprocessor::Execute(path, code, [id, label](const ShaderPreprocessorResult& preprocessed) {
+        GetRenderSystem()->GetShaderCompiler()->CompilePreprocessed(id, label, preprocessed);
+    });
+}
+
+void ShaderCompiler::CompilePreprocessed(uint32_t id, const std::string& label, const ShaderPreprocessorResult& preprocessed)
+{
+    ShaderCompilationResult* pCompilationResult = GetShaderCompilationResult(id);
+    if (!preprocessed.errors.empty())
+    {
+        pCompilationResult->m_State = ShaderCompilationResult::State::Error;
+        pCompilationResult->m_Errors = preprocessed.errors;
+        pCompilationResult->m_Callback(pCompilationResult);
+        pCompilationResult->m_Callback = nullptr;
+        return;
+    }
+    pCompilationResult->m_SourceMap = preprocessed.sourceMap;
 
     wgpu::Device device = GetRenderSystem()->GetDevice();
 
-    std::string preprocessedCode = ShaderPreprocessor::Execute(code);
     wgpu::ShaderSourceWGSL wgslDesc{};
-    wgslDesc.code = preprocessedCode.c_str();
+    wgslDesc.code = preprocessed.code.c_str();
 
     wgpu::ShaderModuleDescriptor shaderModuleDescriptor{
         .nextInChain = &wgslDesc,
@@ -37,8 +54,7 @@ void ShaderCompiler::Compile(const std::string& label, const std::string& code, 
     };
 
     device.PushErrorScope(wgpu::ErrorFilter::Validation);
-    GetShaderCompilationResult(id)->m_Callback = callback;
-    GetShaderCompilationResult(id)->m_ShaderModule = device.CreateShaderModule(&shaderModuleDescriptor);
+    pCompilationResult->m_ShaderModule = device.CreateShaderModule(&shaderModuleDescriptor);
     device.PopErrorScope(
         wgpu::CallbackMode::AllowSpontaneous,
         [id](wgpu::PopErrorScopeStatus, wgpu::ErrorType type, wgpu::StringView) {
@@ -67,10 +83,13 @@ void ShaderCompiler::Compile(const std::string& label, const std::string& code, 
                                     for (size_t i = 0; i < pCompilationInfo->messageCount; i++)
                                     {
                                         const wgpu::CompilationMessage& message = pCompilationInfo->messages[i];
+                                        const ShaderSourceLine source = pResult->m_SourceMap.Resolve(static_cast<uint32_t>(message.lineNum));
                                         pResult->m_Errors.emplace_back(
                                             std::string(message.message.data, message.message.length),
-                                            ShaderPreprocessor::ResolveLineNumber(static_cast<uint32_t>(message.lineNum)),
-                                            static_cast<uint32_t>(message.linePos));
+                                            source.path,
+                                            source.line,
+                                            static_cast<uint32_t>(message.linePos),
+                                            source.rootLine);
                                     }
                                 }
                                 else

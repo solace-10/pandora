@@ -196,7 +196,18 @@ void ShaderEditor::CompileSelectedShader()
             data.state = ShaderState::Error;
             for (auto& error : pResult->GetErrors())
             {
-                errorMarkers[static_cast<int>(error.GetLineNumber())] = error.GetMessage();
+                // Errors in an included file are marked on the #include which brought it in.
+                const bool inThisShader = (error.GetPath() == data.pResource->GetPath());
+                std::string& marker = errorMarkers[static_cast<int>(inThisShader ? error.GetLineNumber() : error.GetRootLineNumber())];
+                if (!marker.empty())
+                {
+                    marker += "\n";
+                }
+                if (!inThisShader)
+                {
+                    marker += error.GetPath() + ":" + std::to_string(error.GetLineNumber()) + ": ";
+                }
+                marker += error.GetMessage();
             }
         }
         else

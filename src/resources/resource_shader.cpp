@@ -49,7 +49,7 @@ const std::string& ResourceShader::GetShaderCode() const
 void ResourceShader::Inject(const std::string& code, OnShaderCompiledCallback callback)
 {
     const std::string label(GetPath() + " (injected)");
-    GetRenderSystem()->GetShaderCompiler()->Compile(label, code, [this, code, callback](ShaderCompilationResult* pCompilationResult) {
+    GetRenderSystem()->GetShaderCompiler()->Compile(GetPath(), label, code, [this, code, callback](ShaderCompilationResult* pCompilationResult) {
         if (pCompilationResult->GetState() == ShaderCompilationResult::State::Success)
         {
             m_ShaderModule = pCompilationResult->GetShaderModule();
@@ -70,7 +70,7 @@ void ResourceShader::LoadInternal(FileReadResult result, FileSharedPtr pFile)
         m_ShaderCode = std::string(pFile->GetData().data(), pFile->GetData().size());
 
         const std::string label(pFile->GetPath());
-        GetRenderSystem()->GetShaderCompiler()->Compile(label, m_ShaderCode, [this, pFile](ShaderCompilationResult* pCompilationResult) {
+        GetRenderSystem()->GetShaderCompiler()->Compile(pFile->GetPath(), label, m_ShaderCode, [this, pFile](ShaderCompilationResult* pCompilationResult) {
             if (pCompilationResult->GetState() == ShaderCompilationResult::State::Success)
             {
                 m_ShaderModule = pCompilationResult->GetShaderModule();
@@ -83,7 +83,7 @@ void ResourceShader::LoadInternal(FileReadResult result, FileSharedPtr pFile)
                 for (const ShaderCompilationError& error : pCompilationResult->GetErrors())
                 {
                     ss << std::endl
-                       << "Error on line " << (error.GetLineNumber()) << ", char " << error.GetLinePosition() << ": " << error.GetMessage();
+                       << "Error in '" << error.GetPath() << "' on line " << error.GetLineNumber() << ", char " << error.GetLinePosition() << ": " << error.GetMessage();
                 }
                 Log::Error() << ss.str();
                 SetState(ResourceState::Error);
