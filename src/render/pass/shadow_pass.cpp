@@ -1,6 +1,7 @@
 #include "render/pass/shadow_pass.hpp"
 
 #include "pandora.hpp"
+#include "render/lighting/lighting_system.hpp"
 #include "render/rendersystem.hpp"
 #include "resources/resource_shader.hpp"
 #include "resources/resource_system.hpp"
@@ -17,24 +18,67 @@ ShadowPass::ShadowPass()
 {
 }
 
+ShadowPass::ShadowPass(const std::string& name, const wgpu::TextureView& target)
+    : Pass(name)
+    , m_Target(target)
+{
+}
+
+void ShadowPass::SetViewProjection(const glm::mat4& viewProjection)
+{
+    m_ViewProjection = viewProjection;
+}
+
+const wgpu::TextureView& ShadowPass::GetTarget() const
+{
+    return m_Target ? m_Target : GetRenderSystem()->GetShadowMapView();
+}
+
 void ShadowPass::Execute(wgpu::CommandEncoder& encoder)
 {
+    // Created on first use rather than in both constructors.
+    if (!m_ViewProjectionBuffer)
+    {
+        wgpu::BufferDescriptor bufferDescriptor{
+            .label = "Shadow view projection",
+            .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+            .size = sizeof(glm::mat4)
+        };
+        m_ViewProjectionBuffer = GetRenderSystem()->GetDevice().CreateBuffer(&bufferDescriptor);
+
+        wgpu::BindGroupEntry bindGroupEntry{
+            .binding = 0,
+            .buffer = m_ViewProjectionBuffer,
+            .size = sizeof(glm::mat4)
+        };
+        wgpu::BindGroupDescriptor bindGroupDescriptor{
+            .label = "Shadow view projection",
+            .layout = GetRenderSystem()->GetShadowViewLayout(),
+            .entryCount = 1,
+            .entries = &bindGroupEntry
+        };
+        m_ViewProjectionBindGroup = GetRenderSystem()->GetDevice().CreateBindGroup(&bindGroupDescriptor);
+    }
+
+    const glm::mat4& viewProjection = m_Target ? m_ViewProjection : GetRenderSystem()->GetLightingSystem()->GetShadowViewProjection();
+    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(m_ViewProjectionBuffer, 0, &viewProjection, sizeof(glm::mat4));
+
     // Cleared even without a scene, so that nothing reads last frame's shadows.
     wgpu::RenderPassDepthStencilAttachment depthAttachment{
-        .view = GetRenderSystem()->GetShadowMapView(),
+        .view = GetTarget(),
         .depthLoadOp = wgpu::LoadOp::Clear,
         .depthStoreOp = wgpu::StoreOp::Store,
         .depthClearValue = 1.0f
     };
 
     wgpu::RenderPassDescriptor renderpass{
-        .label = "Shadow pass",
+        .label = GetName().c_str(),
         .colorAttachmentCount = 0,
         .depthStencilAttachment = &depthAttachment
     };
 
     wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderpass);
-    GetRenderSystem()->BindShadowGlobalUniforms(renderPass);
+    renderPass.SetBindGroup(0, m_ViewProjectionBindGroup);
 
     Scene* pScene = GetActiveScene();
     if (pScene)
@@ -89,7 +133,7 @@ wgpu::TextureView& ShadowPass::RequestDebugView()
 
         wgpu::BindGroupEntry bindGroupEntry{
             .binding = 0,
-            .textureView = GetRenderSystem()->GetShadowMapView()
+            .textureView = GetTarget()
         };
         wgpu::BindGroupDescriptor bindGroupDescriptor{
             .label = "Shadow map debug view",

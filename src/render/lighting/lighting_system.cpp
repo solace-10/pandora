@@ -69,11 +69,6 @@ void LightingSystem::Update()
     }
 }
 
-// An orthographic projection from the light, covering a sphere around the camera's target. A sphere
-// keeps the covered area the same size however the camera turns, and snapping it to whole texels
-// stops the shadows' edges from crawling as the camera moves.
-// ponytail: a single map sized for Knight-One's fixed camera distance; cascades if a game needs
-// shadows far from its camera's target.
 void LightingSystem::UpdateShadowViewProjection()
 {
     glm::vec3 center(0.0f);
@@ -83,25 +78,34 @@ void LightingSystem::UpdateShadowViewProjection()
         center = pCamera->GetComponent<CameraComponent>().camera.GetTarget();
     }
 
-    const glm::vec3& towardsLight = m_DirectionalLight.Direction;
+    m_ShadowViewProjection = CalculateShadowViewProjection(center, m_DirectionalLight.Direction, m_ShadowRadius, RenderSystem::ShadowMapSize);
+}
+
+// An orthographic projection from the light, covering a sphere. A sphere keeps the covered area the
+// same size however the camera turns, and snapping it to whole texels stops the shadows' edges from
+// crawling as the camera moves.
+// ponytail: a single map sized for Knight-One's fixed camera distance; cascades if a game needs
+// shadows far from its camera's target.
+glm::mat4 LightingSystem::CalculateShadowViewProjection(const glm::vec3& center, const glm::vec3& towardsLight, float radius, uint32_t mapSize)
+{
     const glm::vec3 up = std::abs(towardsLight.y) > 0.99f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
     const glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), -towardsLight, up);
 
-    const float texelSize = 2.0f * m_ShadowRadius / static_cast<float>(RenderSystem::ShadowMapSize);
+    const float texelSize = 2.0f * radius / static_cast<float>(mapSize);
     glm::vec3 lightCenter = glm::vec3(lightView * glm::vec4(center, 1.0f));
     lightCenter.x = std::floor(lightCenter.x / texelSize) * texelSize;
     lightCenter.y = std::floor(lightCenter.y / texelSize) * texelSize;
 
     // The view looks down -z. Things out of view but between the sphere and the light can still cast
     // shadows into it, so the near plane is pulled a further radius towards the light.
-    const float nearPlane = -lightCenter.z - 2.0f * m_ShadowRadius;
-    const float farPlane = -lightCenter.z + m_ShadowRadius;
+    const float nearPlane = -lightCenter.z - 2.0f * radius;
+    const float farPlane = -lightCenter.z + radius;
     const glm::mat4 lightProjection = glm::orthoRH_ZO(
-        lightCenter.x - m_ShadowRadius, lightCenter.x + m_ShadowRadius,
-        lightCenter.y - m_ShadowRadius, lightCenter.y + m_ShadowRadius,
+        lightCenter.x - radius, lightCenter.x + radius,
+        lightCenter.y - radius, lightCenter.y + radius,
         nearPlane, farPlane);
 
-    m_ShadowViewProjection = lightProjection * lightView;
+    return lightProjection * lightView;
 }
 
 void LightingSystem::DrawDebugUI()

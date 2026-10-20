@@ -80,6 +80,11 @@ public:
     // The radius of the sphere around the camera's target that the shadow map covers.
     float GetShadowRadius() const;
 
+    // World to the clip space of a shadow map mapSize texels across, looking along -towardsLight and
+    // covering a sphere of the given radius. What the directional light's shadow map uses, for any
+    // other shadow map that should match it.
+    static glm::mat4 CalculateShadowViewProjection(const glm::vec3& center, const glm::vec3& towardsLight, float radius, uint32_t mapSize);
+
 private:
     void DrawDebugGizmo();
     void UpdateShadowViewProjection();

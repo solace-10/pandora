@@ -56,10 +56,8 @@ public:
     // The global uniforms are written once per frame, before any pass runs.
     void BindGlobalUniforms(wgpu::RenderPassEncoder& renderPassEncoder);
 
-    // ShadowPass renders into the shadow map, so it can't bind the global uniforms, which sample it.
-    // It binds these instead: the same buffer, without the shadow map.
-    void BindShadowGlobalUniforms(wgpu::RenderPassEncoder& renderPassEncoder);
-    wgpu::BindGroupLayout& GetShadowGlobalUniformsLayout();
+    // What a ShadowPass binds at group 0 instead of the global uniforms: its view projection.
+    wgpu::BindGroupLayout& GetShadowViewLayout();
     wgpu::TextureView& GetShadowMapView();
 
     static constexpr size_t MsaaSampleCount = 4;
@@ -93,8 +91,7 @@ private:
     wgpu::Buffer m_GlobalUniformsBuffer;
     wgpu::BindGroup m_GlobalUniformsBindGroup;
     wgpu::BindGroupLayout m_GlobalUniformsBindGroupLayout;
-    wgpu::BindGroup m_ShadowGlobalUniformsBindGroup;
-    wgpu::BindGroupLayout m_ShadowGlobalUniformsBindGroupLayout;
+    wgpu::BindGroupLayout m_ShadowViewLayout;
 
     wgpu::Texture m_ShadowMap;
     wgpu::TextureView m_ShadowMapView;

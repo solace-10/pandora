@@ -52,8 +52,7 @@ RenderSystem::~RenderSystem()
     m_pMipLevelGenerator.reset();
     m_GlobalUniformsBindGroup = nullptr;
     m_GlobalUniformsBindGroupLayout = nullptr;
-    m_ShadowGlobalUniformsBindGroup = nullptr;
-    m_ShadowGlobalUniformsBindGroupLayout = nullptr;
+    m_ShadowViewLayout = nullptr;
     m_GlobalUniformsBuffer = nullptr;
     m_ShadowSampler = nullptr;
     m_ShadowMapView = nullptr;
@@ -382,21 +381,21 @@ void RenderSystem::CreateGlobalUniforms()
     };
     m_GlobalUniformsBindGroup = GetDevice().CreateBindGroup(&bindGroupDescriptor);
 
-    // Just the buffer, for ShadowPass.
-    BindGroupLayoutDescriptor shadowBindGroupLayoutDescriptor{
-        .label = "Shadow global uniforms",
-        .entryCount = 1,
-        .entries = &bindGroupLayoutEntries[0]
+    // A ShadowPass renders into a shadow map, so it can't bind the global uniforms, which sample it.
+    // It binds its own view projection instead.
+    BindGroupLayoutEntry shadowViewLayoutEntry{
+        .binding = 0,
+        .visibility = ShaderStage::Vertex,
+        .buffer{
+            .type = wgpu::BufferBindingType::Uniform,
+            .minBindingSize = sizeof(glm::mat4x4) }
     };
-    m_ShadowGlobalUniformsBindGroupLayout = GetDevice().CreateBindGroupLayout(&shadowBindGroupLayoutDescriptor);
-
-    BindGroupDescriptor shadowBindGroupDescriptor{
-        .label = "Shadow global uniforms",
-        .layout = m_ShadowGlobalUniformsBindGroupLayout,
+    BindGroupLayoutDescriptor shadowViewLayoutDescriptor{
+        .label = "Shadow view",
         .entryCount = 1,
-        .entries = &bindGroupEntries[0]
+        .entries = &shadowViewLayoutEntry
     };
-    m_ShadowGlobalUniformsBindGroup = GetDevice().CreateBindGroup(&shadowBindGroupDescriptor);
+    m_ShadowViewLayout = GetDevice().CreateBindGroupLayout(&shadowViewLayoutDescriptor);
 }
 
 void RenderSystem::WriteGlobalUniforms()
@@ -444,14 +443,9 @@ void RenderSystem::BindGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);
 }
 
-void RenderSystem::BindShadowGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
+wgpu::BindGroupLayout& RenderSystem::GetShadowViewLayout()
 {
-    renderPass.SetBindGroup(0, m_ShadowGlobalUniformsBindGroup);
-}
-
-wgpu::BindGroupLayout& RenderSystem::GetShadowGlobalUniformsLayout()
-{
-    return m_ShadowGlobalUniformsBindGroupLayout;
+    return m_ShadowViewLayout;
 }
 
 wgpu::TextureView& RenderSystem::GetShadowMapView()
