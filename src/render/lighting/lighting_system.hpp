@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 
+#include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
 #include "imgui/idebugui.hpp"
@@ -70,8 +71,15 @@ public:
 
     Tonemapper GetTonemapper() const;
 
+    // World to the directional light's shadow map clip space.
+    const glm::mat4& GetShadowViewProjection() const;
+
+    // How far, in world units, shadow lookups are pushed off the surface along its normal.
+    float GetShadowNormalOffset() const;
+
 private:
     void DrawDebugGizmo();
+    void UpdateShadowViewProjection();
 
     AmbientLight m_AmbientLight;
     EntityWeakPtr m_pAmbientLightEntity;
@@ -83,6 +91,12 @@ private:
     float m_Exposure{ 1.0f };
     float m_BloomStrength{ 0.2f };
     Tonemapper m_Tonemapper{ Tonemapper::ACES };
+
+    // The shadow map covers a sphere of this radius around the camera's target.
+    float m_ShadowRadius{ 80.0f };
+    float m_ShadowNormalOffsetTexels{ 1.5f };
+    bool m_ShowShadowMap{ false };
+    glm::mat4 m_ShadowViewProjection{ 1.0f };
 };
 
 } // namespace WingsOfSteel

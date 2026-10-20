@@ -53,15 +53,24 @@ public:
     ShaderCompiler* GetShaderCompiler() const;
     ShaderEditor* GetShaderEditor() const;
 
-    void UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPassEncoder);
+    // The global uniforms are written once per frame, before any pass runs.
+    void BindGlobalUniforms(wgpu::RenderPassEncoder& renderPassEncoder);
+
+    // ShadowPass renders into the shadow map, so it can't bind the global uniforms, which sample it.
+    // It binds these instead: the same buffer, without the shadow map.
+    void BindShadowGlobalUniforms(wgpu::RenderPassEncoder& renderPassEncoder);
+    wgpu::BindGroupLayout& GetShadowGlobalUniformsLayout();
+    wgpu::TextureView& GetShadowMapView();
 
     static constexpr size_t MsaaSampleCount = 4;
+    static constexpr uint32_t ShadowMapSize = 2048;
 
 private:
     void AcquireDevice(void (*callback)());
     void InitializeInternal();
 
     void CreateGlobalUniforms();
+    void WriteGlobalUniforms();
 
     struct GlobalUniforms
     {
@@ -76,12 +85,20 @@ private:
         glm::vec4 directionalLightDirection;
         glm::vec4 ambientLightColor;
         glm::vec4 ambientSH[9]; // See AmbientSH; vec4s for alignment.
+        glm::mat4x4 shadowViewProjection;
+        glm::vec4 shadowParameters; // x: normal offset in world units.
     };
     GlobalUniforms m_GlobalUniforms;
 
     wgpu::Buffer m_GlobalUniformsBuffer;
     wgpu::BindGroup m_GlobalUniformsBindGroup;
     wgpu::BindGroupLayout m_GlobalUniformsBindGroupLayout;
+    wgpu::BindGroup m_ShadowGlobalUniformsBindGroup;
+    wgpu::BindGroupLayout m_ShadowGlobalUniformsBindGroupLayout;
+
+    wgpu::Texture m_ShadowMap;
+    wgpu::TextureView m_ShadowMapView;
+    wgpu::Sampler m_ShadowSampler;
 
     ShaderCompilerUniquePtr m_pShaderCompiler;
     ShaderEditorUniquePtr m_pShaderEditor;

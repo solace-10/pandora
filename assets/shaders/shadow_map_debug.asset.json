@@ -1,0 +1,4 @@
+{
+    "source": "shaders/shadow_map_debug.wgsl",
+    "destination": "shaders/pandora/shadow_map_debug.wgsl"
+}

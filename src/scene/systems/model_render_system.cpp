@@ -27,6 +27,39 @@ void ModelRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
         return;
     }
 
+    GatherInstances();
+    for (auto& instanceData : m_InstanceData)
+    {
+        ResourceModelSharedPtr pModel = instanceData.pModel.lock();
+        if (pModel && !instanceData.transforms.empty())
+        {
+            pModel->Render(renderPass, instanceData.transforms, instanceData.shaderParameters);
+        }
+    }
+}
+
+// Gathers the instances again rather than reusing the shadow pass's, so the two passes can't disagree
+// about what was in the scene.
+void ModelRenderSystem::RenderShadows(wgpu::RenderPassEncoder& renderPass)
+{
+    if (GetActiveScene() == nullptr)
+    {
+        return;
+    }
+
+    GatherInstances();
+    for (auto& instanceData : m_InstanceData)
+    {
+        ResourceModelSharedPtr pModel = instanceData.pModel.lock();
+        if (pModel && !instanceData.transforms.empty())
+        {
+            pModel->RenderShadows(renderPass, instanceData.transforms);
+        }
+    }
+}
+
+void ModelRenderSystem::GatherInstances()
+{
     entt::registry& registry = GetActiveScene()->GetRegistry();
     auto view = registry.view<ModelComponent, TransformComponent>();
 
@@ -52,15 +85,6 @@ void ModelRenderSystem::Render(wgpu::RenderPassEncoder& renderPass)
             m_InstanceData[idx].shaderParameters.push_back(modelComponent.GetShaderParameters());
         }
     });
-
-    for (auto& instanceData : m_InstanceData)
-    {
-        ResourceModelSharedPtr pModel = instanceData.pModel.lock();
-        if (pModel && !instanceData.transforms.empty())
-        {
-            pModel->Render(renderPass, instanceData.transforms, instanceData.shaderParameters);
-        }
-    }
 }
 
 } // namespace WingsOfSteel

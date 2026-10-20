@@ -24,10 +24,13 @@ public:
     void Update(float delta) override{};
 
     void Render(wgpu::RenderPassEncoder& renderPass);
+    void RenderShadows(wgpu::RenderPassEncoder& renderPass);
 
     ModelVisualization* GetVisualization() { return m_pModelVisualization.get(); }
 
 private:
+    void GatherInstances();
+
     ModelVisualizationUniquePtr m_pModelVisualization;
 
     struct InstanceData

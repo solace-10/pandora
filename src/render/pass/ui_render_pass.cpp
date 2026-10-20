@@ -32,7 +32,7 @@ void UIRenderPass::Execute(wgpu::CommandEncoder& encoder)
     };
 
     wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderpass);
-    GetRenderSystem()->UpdateGlobalUniforms(renderPass);
+    GetRenderSystem()->BindGlobalUniforms(renderPass);
 
     GetDebugRender()->Render(renderPass);
     GetImGuiSystem()->Render(renderPass);

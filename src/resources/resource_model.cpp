@@ -51,6 +51,7 @@ namespace WingsOfSteel
 static bool sShaderLocationsMapInitialized = false;
 static std::unordered_map<std::string, int> sShaderLocationsMap;
 static ResourceModel::Id sId = 0;
+static const std::string sShadowShaderPath = "/shaders/pandora/shadow_depth.wgsl";
 
 ResourceModel::ResourceModel()
     : m_DependentResourcesToLoad(0)
@@ -86,6 +87,69 @@ ResourceType ResourceModel::GetResourceType() const
 }
 
 void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vector<glm::mat4>& instanceTransforms, const std::vector<std::unordered_map<std::string, float>>& instanceShaderParameters)
+{
+    UploadInstanceTransforms(renderPass, instanceTransforms);
+
+    // Update dynamic uniforms for materials with shader parameters
+    if (!instanceShaderParameters.empty() && !m_Materials.empty())
+    {
+        for (auto& material : m_Materials)
+        {
+            if (material.HasDynamicUniforms())
+            {
+                // Resize buffer if needed (grows but never shrinks to avoid thrashing)
+                if (m_InstanceCount > material.GetDynamicUniformsBufferCapacity())
+                {
+                    size_t newCapacity = material.GetDynamicUniformsBufferCapacity();
+                    while (newCapacity < m_InstanceCount)
+                    {
+                        newCapacity *= 2;
+                    }
+                    material.ResizeDynamicUniformsBuffer(newCapacity);
+                }
+
+                const auto& paramDefinitions = material.GetParameterDefinitions();
+                std::vector<DynamicUniformsData> dynamicDataArray = InstanceParameterBuffer::PackParameters(paramDefinitions, instanceShaderParameters);
+
+                if (!dynamicDataArray.empty())
+                {
+                    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
+                        material.GetDynamicUniformsBuffer(),
+                        0,
+                        dynamicDataArray.data(),
+                        dynamicDataArray.size() * sizeof(DynamicUniformsData));
+                }
+            }
+        }
+    }
+
+    for (auto& node : m_Nodes)
+    {
+        if (node.IsRoot())
+        {
+            // Do not break here: a GLTF scene can have more than one root node.
+            RenderNode(renderPass, node, glm::mat4(1.0f), false);
+        }
+    }
+}
+
+// The shadow pass and the scene pass both write the same instance and node data. That is only safe
+// because it is identical: the queue applies every write before the frame's commands run, so each
+// pass sees the last one.
+void ResourceModel::RenderShadows(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms)
+{
+    UploadInstanceTransforms(renderPass, instanceTransforms);
+
+    for (auto& node : m_Nodes)
+    {
+        if (node.IsRoot())
+        {
+            RenderNode(renderPass, node, glm::mat4(1.0f), true);
+        }
+    }
+}
+
+void ResourceModel::UploadInstanceTransforms(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms)
 {
     using namespace wgpu;
 
@@ -130,48 +194,6 @@ void ResourceModel::Render(wgpu::RenderPassEncoder& renderPass, const std::vecto
         instanceTransforms.data(),
         m_InstanceCount * sizeof(glm::mat4));
     renderPass.SetBindGroup(2, m_InstanceUniforms.bindGroup);
-
-    // Update dynamic uniforms for materials with shader parameters
-    if (!instanceShaderParameters.empty() && !m_Materials.empty())
-    {
-        for (auto& material : m_Materials)
-        {
-            if (material.HasDynamicUniforms())
-            {
-                // Resize buffer if needed (grows but never shrinks to avoid thrashing)
-                if (m_InstanceCount > material.GetDynamicUniformsBufferCapacity())
-                {
-                    size_t newCapacity = material.GetDynamicUniformsBufferCapacity();
-                    while (newCapacity < m_InstanceCount)
-                    {
-                        newCapacity *= 2;
-                    }
-                    material.ResizeDynamicUniformsBuffer(newCapacity);
-                }
-
-                const auto& paramDefinitions = material.GetParameterDefinitions();
-                std::vector<DynamicUniformsData> dynamicDataArray = InstanceParameterBuffer::PackParameters(paramDefinitions, instanceShaderParameters);
-
-                if (!dynamicDataArray.empty())
-                {
-                    GetRenderSystem()->GetDevice().GetQueue().WriteBuffer(
-                        material.GetDynamicUniformsBuffer(),
-                        0,
-                        dynamicDataArray.data(),
-                        dynamicDataArray.size() * sizeof(DynamicUniformsData));
-                }
-            }
-        }
-    }
-
-    for (auto& node : m_Nodes)
-    {
-        if (node.IsRoot())
-        {
-            // Do not break here: a GLTF scene can have more than one root node.
-            RenderNode(renderPass, node, glm::mat4(1.0f));
-        }
-    }
 }
 
 std::optional<ResourceModel::AttachmentPoint> ResourceModel::GetAttachmentPoint(const std::string& name) const
@@ -187,7 +209,7 @@ std::optional<ResourceModel::AttachmentPoint> ResourceModel::GetAttachmentPoint(
     return std::nullopt;
 }
 
-void ResourceModel::RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& node, const glm::mat4& parentTransform)
+void ResourceModel::RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& node, const glm::mat4& parentTransform, bool shadows)
 {
     if (!node.GetMeshId().has_value() || node.IsCollision())
     {
@@ -204,9 +226,19 @@ void ResourceModel::RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& 
     const uint32_t meshId = node.GetMeshId().value();
     for (auto& primitiveRenderData : m_RenderData[meshId])
     {
-        renderPass.SetBindGroup(3, m_Materials[primitiveRenderData.materialIndex].GetBindGroup());
-
-        renderPass.SetPipeline(primitiveRenderData.pipeline);
+        if (shadows)
+        {
+            if (!primitiveRenderData.shadowPipeline)
+            {
+                continue;
+            }
+            renderPass.SetPipeline(primitiveRenderData.shadowPipeline);
+        }
+        else
+        {
+            renderPass.SetBindGroup(3, m_Materials[primitiveRenderData.materialIndex].GetBindGroup());
+            renderPass.SetPipeline(primitiveRenderData.pipeline);
+        }
         for (const auto& vertexData : primitiveRenderData.vertexData)
         {
             renderPass.SetVertexBuffer(vertexData.slot, m_Buffers[vertexData.index], vertexData.offset);
@@ -226,7 +258,7 @@ void ResourceModel::RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& 
     for (auto& childNodeId : node.GetChildren())
     {
         const Node& childNode = m_Nodes[childNodeId];
-        RenderNode(renderPass, childNode, transform);
+        RenderNode(renderPass, childNode, transform, shadows);
     }
 }
 
@@ -292,7 +324,10 @@ void ResourceModel::LoadDependentResources()
         path << "/shaders/" << material.name << ".wgsl";
         m_Shaders[path.str()] = nullptr;
     }
-    m_DependentResourcesToLoad += m_pModel->materials.size();
+    m_Shaders[sShadowShaderPath] = nullptr;
+
+    // Counted from the map, as materials can share a shader.
+    m_DependentResourcesToLoad += m_Shaders.size();
     m_DependentResourcesToLoad += m_pModel->images.size();
 
     if (m_DependentResourcesToLoad == 0)
@@ -845,7 +880,59 @@ void ResourceModel::SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimit
 
     renderData.pipeline = GetRenderSystem()->GetDevice().CreateRenderPipeline(&descriptor);
 
+    if (material.GetBlendMode() == BlendMode::None)
+    {
+        renderData.shadowPipeline = CreateShadowPipeline(pPrimitive, bufferLayouts, descriptor.primitive.stripIndexFormat);
+    }
+
     m_RenderData[meshId].push_back(std::move(renderData));
+}
+
+// The same vertex buffers as the primitive's own pipeline, of which shadow_depth.wgsl only reads the
+// position.
+wgpu::RenderPipeline ResourceModel::CreateShadowPipeline(const tinygltf::Primitive* pPrimitive, const std::vector<wgpu::VertexBufferLayout>& bufferLayouts, wgpu::IndexFormat stripIndexFormat) const
+{
+    auto it = m_Shaders.find(sShadowShaderPath);
+    if (it == m_Shaders.end() || !it->second || !it->second->GetShaderModule())
+    {
+        return nullptr;
+    }
+
+    // Slope-scaled, as the surfaces which shadow themselves worst are the ones at grazing angles to
+    // the light. The constant part of the bias is the normal offset in shadows.wgsl instead.
+    wgpu::DepthStencilState depthState{
+        .format = wgpu::TextureFormat::Depth32Float,
+        .depthWriteEnabled = true,
+        .depthCompare = wgpu::CompareFunction::Less,
+        .depthBiasSlopeScale = 2.0f
+    };
+
+    std::array<wgpu::BindGroupLayout, 3> bindGroupLayouts = {
+        GetRenderSystem()->GetShadowGlobalUniformsLayout(),
+        m_LocalUniformsBindGroupLayout,
+        m_InstanceUniformsBindGroupLayout
+    };
+
+    wgpu::PipelineLayoutDescriptor pipelineLayoutDescriptor{
+        .label = GetName().c_str(),
+        .bindGroupLayoutCount = bindGroupLayouts.size(),
+        .bindGroupLayouts = bindGroupLayouts.data()
+    };
+    wgpu::PipelineLayout pipelineLayout = GetRenderSystem()->GetDevice().CreatePipelineLayout(&pipelineLayoutDescriptor);
+
+    const std::string label = "ResourceModel shadow " + GetPath();
+    wgpu::RenderPipelineDescriptor descriptor{
+        .label = label.c_str(),
+        .layout = pipelineLayout,
+        .vertex = {
+            .module = it->second->GetShaderModule(),
+            .bufferCount = bufferLayouts.size(),
+            .buffers = bufferLayouts.data() },
+        .primitive = { .topology = GetPrimitiveTopology(pPrimitive), .stripIndexFormat = stripIndexFormat, .cullMode = wgpu::CullMode::None },
+        .depthStencil = &depthState
+    };
+
+    return GetRenderSystem()->GetDevice().CreateRenderPipeline(&descriptor);
 }
 
 std::optional<int> ResourceModel::GetShaderLocation(const std::string& attributeName) const

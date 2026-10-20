@@ -40,7 +40,7 @@ void BaseRenderPass::Execute(wgpu::CommandEncoder& encoder)
     };
 
     wgpu::RenderPassEncoder renderPass = encoder.BeginRenderPass(&renderpass);
-    GetRenderSystem()->UpdateGlobalUniforms(renderPass);
+    GetRenderSystem()->BindGlobalUniforms(renderPass);
 
     if (m_PreSceneCallback)
     {

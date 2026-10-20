@@ -50,6 +50,9 @@ public:
 
     void Render(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms, const std::vector<std::unordered_map<std::string, float>>& instanceShaderParameters = {});
 
+    // Depth only, into the shadow map. Translucent primitives don't cast shadows.
+    void RenderShadows(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms);
+
     const std::vector<AttachmentPoint>& GetAttachmentPoints() const { return m_AttachmentPoints; }
     std::optional<AttachmentPoint> GetAttachmentPoint(const std::string& name) const;
     CollisionShapeSharedPtr GetCollisionShape() const { return m_pCollisionShape; }
@@ -102,6 +105,7 @@ private:
     void SetupAttachments();
     void SetupMeshes();
     void SetupPrimitive(uint32_t meshId, tinygltf::Primitive* pPrimitive);
+    wgpu::RenderPipeline CreateShadowPipeline(const tinygltf::Primitive* pPrimitive, const std::vector<wgpu::VertexBufferLayout>& bufferLayouts, wgpu::IndexFormat stripIndexFormat) const;
     void SetupCollisionShape();
     std::optional<int> GetShaderLocation(const std::string& attributeName) const;
     wgpu::IndexFormat GetIndexFormat(const tinygltf::Accessor* pAccessor) const;
@@ -114,7 +118,8 @@ private:
     void CreateInstanceUniforms();
     void CreateTextureUniforms();
     void HandleShaderInjection();
-    void RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& node, const glm::mat4& parentTransform);
+    void UploadInstanceTransforms(wgpu::RenderPassEncoder& renderPass, const InstanceTransforms& instanceTransforms);
+    void RenderNode(wgpu::RenderPassEncoder& renderPass, const Node& node, const glm::mat4& parentTransform, bool shadows);
     void TagSrgbTextures();
     bool IsSrgbTexture(int textureIndex) const;    
 
@@ -150,6 +155,7 @@ private:
 
         uint32_t materialIndex;
         wgpu::RenderPipeline pipeline;
+        wgpu::RenderPipeline shadowPipeline; // Null for primitives which don't cast shadows.
         std::unique_ptr<std::string> pipelineLabel;
     };
 

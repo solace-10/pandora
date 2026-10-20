@@ -1,5 +1,6 @@
 #include "render/rendersystem.hpp"
 
+#include <array>
 #include <cassert>
 #include <string_view>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "render/mip_level_generator.hpp"
 #include "render/pass/base_render_pass.hpp"
 #include "render/pass/present_pass.hpp"
+#include "render/pass/shadow_pass.hpp"
 #include "render/pass/ui_render_pass.hpp"
 #include "render/shader_compiler.hpp"
 #include "render/shader_editor.hpp"
@@ -50,7 +52,12 @@ RenderSystem::~RenderSystem()
     m_pMipLevelGenerator.reset();
     m_GlobalUniformsBindGroup = nullptr;
     m_GlobalUniformsBindGroupLayout = nullptr;
+    m_ShadowGlobalUniformsBindGroup = nullptr;
+    m_ShadowGlobalUniformsBindGroupLayout = nullptr;
     m_GlobalUniformsBuffer = nullptr;
+    m_ShadowSampler = nullptr;
+    m_ShadowMapView = nullptr;
+    m_ShadowMap = nullptr;
 
     g_Device = nullptr;
     g_Adapter = nullptr;
@@ -99,6 +106,7 @@ void RenderSystem::InitializeInternal()
     m_pShaderEditor = std::make_unique<ShaderEditor>();
     m_pLightingSystem = std::make_unique<LightingSystem>();
 
+    AddPass(std::make_shared<ShadowPass>());
     AddPass(std::make_shared<BaseRenderPass>());
     AddPass(std::make_shared<PresentPass>());
     AddPass(std::make_shared<UIRenderPass>());
@@ -113,6 +121,7 @@ void RenderSystem::Update()
 
     GetShaderEditor()->Update();
     GetLightingSystem()->Update();
+    WriteGlobalUniforms();
 
     wgpu::CommandEncoderDescriptor commandEncoderDescriptor{
         .label = "Pandora default command encoder"
@@ -299,6 +308,7 @@ void RenderSystem::CreateGlobalUniforms()
     m_GlobalUniforms.directionalLightColor = glm::vec4(1.0f);
     m_GlobalUniforms.directionalLightDirection = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
     m_GlobalUniforms.ambientLightColor = glm::vec4(1.0f);
+    m_GlobalUniforms.shadowViewProjection = glm::mat4x4(1.0f);
 
     BufferDescriptor bufferDescriptor{
         .label = "Global uniforms buffer",
@@ -308,37 +318,88 @@ void RenderSystem::CreateGlobalUniforms()
 
     m_GlobalUniformsBuffer = GetDevice().CreateBuffer(&bufferDescriptor);
 
-    BindGroupLayoutEntry bindGroupLayoutEntry{
-        .binding = 0,
-        .visibility = ShaderStage::Vertex | ShaderStage::Fragment,
-        .buffer{
-            .type = wgpu::BufferBindingType::Uniform,
-            .minBindingSize = sizeof(GlobalUniforms) }
+    TextureDescriptor shadowMapDescriptor{
+        .label = "Shadow map",
+        .usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding,
+        .size{ .width = ShadowMapSize, .height = ShadowMapSize },
+        .format = TextureFormat::Depth32Float
+    };
+    m_ShadowMap = GetDevice().CreateTexture(&shadowMapDescriptor);
+    m_ShadowMapView = m_ShadowMap.CreateView();
+
+    // Linear filtering on a comparison sampler blends the results of four comparisons: 2x2 PCF.
+    SamplerDescriptor shadowSamplerDescriptor{
+        .label = "Shadow sampler",
+        .magFilter = FilterMode::Linear,
+        .minFilter = FilterMode::Linear,
+        .compare = CompareFunction::LessEqual
+    };
+    m_ShadowSampler = GetDevice().CreateSampler(&shadowSamplerDescriptor);
+
+    std::array<BindGroupLayoutEntry, 3> bindGroupLayoutEntries{
+        BindGroupLayoutEntry{
+            .binding = 0,
+            .visibility = ShaderStage::Vertex | ShaderStage::Fragment,
+            .buffer{
+                .type = wgpu::BufferBindingType::Uniform,
+                .minBindingSize = sizeof(GlobalUniforms) } },
+        BindGroupLayoutEntry{
+            .binding = 1,
+            .visibility = ShaderStage::Fragment,
+            .texture{ .sampleType = TextureSampleType::Depth } },
+        BindGroupLayoutEntry{
+            .binding = 2,
+            .visibility = ShaderStage::Fragment,
+            .sampler{ .type = SamplerBindingType::Comparison } }
     };
 
-    wgpu::BindGroupLayoutDescriptor bindGroupLayoutDescriptor{
-        .entryCount = 1,
-        .entries = &bindGroupLayoutEntry
+    BindGroupLayoutDescriptor bindGroupLayoutDescriptor{
+        .label = "Global uniforms",
+        .entryCount = bindGroupLayoutEntries.size(),
+        .entries = bindGroupLayoutEntries.data()
     };
     m_GlobalUniformsBindGroupLayout = GetDevice().CreateBindGroupLayout(&bindGroupLayoutDescriptor);
 
-    BindGroupEntry bindGroupEntry{
-        .binding = 0,
-        .buffer = m_GlobalUniformsBuffer,
-        .offset = 0,
-        .size = sizeof(GlobalUniforms)
+    std::array<BindGroupEntry, 3> bindGroupEntries{
+        BindGroupEntry{
+            .binding = 0,
+            .buffer = m_GlobalUniformsBuffer,
+            .offset = 0,
+            .size = sizeof(GlobalUniforms) },
+        BindGroupEntry{
+            .binding = 1,
+            .textureView = m_ShadowMapView },
+        BindGroupEntry{
+            .binding = 2,
+            .sampler = m_ShadowSampler }
     };
 
     BindGroupDescriptor bindGroupDescriptor{
+        .label = "Global uniforms",
         .layout = m_GlobalUniformsBindGroupLayout,
-        .entryCount = bindGroupLayoutDescriptor.entryCount,
-        .entries = &bindGroupEntry
+        .entryCount = bindGroupEntries.size(),
+        .entries = bindGroupEntries.data()
     };
-
     m_GlobalUniformsBindGroup = GetDevice().CreateBindGroup(&bindGroupDescriptor);
+
+    // Just the buffer, for ShadowPass.
+    BindGroupLayoutDescriptor shadowBindGroupLayoutDescriptor{
+        .label = "Shadow global uniforms",
+        .entryCount = 1,
+        .entries = &bindGroupLayoutEntries[0]
+    };
+    m_ShadowGlobalUniformsBindGroupLayout = GetDevice().CreateBindGroupLayout(&shadowBindGroupLayoutDescriptor);
+
+    BindGroupDescriptor shadowBindGroupDescriptor{
+        .label = "Shadow global uniforms",
+        .layout = m_ShadowGlobalUniformsBindGroupLayout,
+        .entryCount = 1,
+        .entries = &bindGroupEntries[0]
+    };
+    m_ShadowGlobalUniformsBindGroup = GetDevice().CreateBindGroup(&shadowBindGroupDescriptor);
 }
 
-void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
+void RenderSystem::WriteGlobalUniforms()
 {
     EntitySharedPtr pCamera = GetActiveScene() ? GetActiveScene()->GetCamera() : nullptr;
     if (pCamera)
@@ -372,8 +433,30 @@ void RenderSystem::UpdateGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
         m_GlobalUniforms.ambientSH[i] = glm::vec4(ambientSH[i], 0.0f);
     }
 
+    m_GlobalUniforms.shadowViewProjection = GetLightingSystem()->GetShadowViewProjection();
+    m_GlobalUniforms.shadowParameters = glm::vec4(GetLightingSystem()->GetShadowNormalOffset(), 0.0f, 0.0f, 0.0f);
+
     GetDevice().GetQueue().WriteBuffer(m_GlobalUniformsBuffer, 0, &m_GlobalUniforms, sizeof(GlobalUniforms));
+}
+
+void RenderSystem::BindGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
+{
     renderPass.SetBindGroup(0, m_GlobalUniformsBindGroup);
+}
+
+void RenderSystem::BindShadowGlobalUniforms(wgpu::RenderPassEncoder& renderPass)
+{
+    renderPass.SetBindGroup(0, m_ShadowGlobalUniformsBindGroup);
+}
+
+wgpu::BindGroupLayout& RenderSystem::GetShadowGlobalUniformsLayout()
+{
+    return m_ShadowGlobalUniformsBindGroupLayout;
+}
+
+wgpu::TextureView& RenderSystem::GetShadowMapView()
+{
+    return m_ShadowMapView;
 }
 
 wgpu::BindGroupLayout& RenderSystem::GetGlobalUniformsLayout()

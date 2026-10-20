@@ -1,0 +1,4 @@
+{
+    "source": "shaders/shadow_depth.wgsl",
+    "destination": "shaders/pandora/shadow_depth.wgsl"
+}
