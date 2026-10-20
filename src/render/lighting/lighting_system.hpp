@@ -77,6 +77,9 @@ public:
     // How far, in world units, shadow lookups are pushed off the surface along its normal.
     float GetShadowNormalOffset() const;
 
+    // The radius of the sphere around the camera's target that the shadow map covers.
+    float GetShadowRadius() const;
+
 private:
     void DrawDebugGizmo();
     void UpdateShadowViewProjection();

@@ -266,6 +266,11 @@ float LightingSystem::GetShadowNormalOffset() const
     return m_ShadowNormalOffsetTexels * 2.0f * m_ShadowRadius / static_cast<float>(RenderSystem::ShadowMapSize);
 }
 
+float LightingSystem::GetShadowRadius() const
+{
+    return m_ShadowRadius;
+}
+
 void LightingSystem::DrawDebugGizmo()
 {
     GetDebugRender()->AxisTriad(glm::mat4(1.0f), 2.5f, 50.0f);

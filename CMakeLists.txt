@@ -42,13 +42,13 @@ target_include_directories(pandora SYSTEM PUBLIC
     ext/imgui_markdown/
     ext/delaunator-cpp/
     ext/entt/single_include/
+    ext/FastNoiseLite/Cpp/
     ext/stb/
     ext/tinygltf/
 )
 
 target_include_directories(pandora SYSTEM PRIVATE
     ext/debug-draw/
-    ext/FastNoiseLite/Cpp/
     ext/freetype/include/
 )
 
